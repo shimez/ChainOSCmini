@@ -1,0 +1,8 @@
+.pio/
+.pio-core/
+.pio-cache/
+.vscode/
+*.bin
+*.elf
+*.map
+build/
