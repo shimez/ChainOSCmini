@@ -31,13 +31,24 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 
 ## OSC Address
 
+以下は初期設定で使用するOSC Addressです。Address、値、型はWeb UIから用途に合わせて変更できます。
+
 | 入力 | OSC Address | 値 |
 |---|---|---|
-| DualKey KEY1 | `/chainoscmini/dualkey/key1` | 押下 `1`、解放 `0` |
-| DualKey KEY2 | `/chainoscmini/dualkey/key2` | 押下 `1`、解放 `0` |
-| Chain Key | `/chainoscmini/chain/key/<UID>` | 押下 `1`、解放 `0` |
+| DualKey KEY1 | `/chainoscmini/dualkey/key1` | 押した時 `1`、離した時 `0` |
+| DualKey KEY2 | `/chainoscmini/dualkey/key2` | 押した時 `1`、離した時 `0` |
+| Chain Key | `/chainoscmini/chain/key/<UID>` | 押した時 `1`、離した時 `0` |
 
 Chain Keyの`<UID>`には、ログに表示される24桁の16進数UIDが入ります。
+
+例えば次のように設定できます。
+
+| 用途 | OSC Address | 設定値 |
+|---|---|---|
+| VRChatのマイクON／OFF | `/input/Voice` | 押した時 `1`／離した時 `0` |
+| VRChatのAFKモードON／OFF | `/input/AFKToggle` | 押した時 `1`／離した時 `0` |
+
+そのほかの設定例は[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets)を参照してください。
 
 ## Wi-Fi初期設定
 
