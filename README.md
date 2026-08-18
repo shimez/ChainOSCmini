@@ -5,9 +5,9 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.7.0
+## Version 0.8.0
 
-0.6.0までのDualKey本体・左右Chain・ネットワーク機能に、基本的なOSC送信を追加した開発版です。UID単位の詳細設定UIはまだ実装していません。
+0.7.0までの基本OSC送信に、本体キーとChain Keyの個別設定を追加した開発版です。Chain Keyの設定はUID単位で保存され、左右の移動や接続順序変更後も復元されます。
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
@@ -39,6 +39,25 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 - Web画面からOSC送信先のホスト名／IPアドレスとUDPポートを設定
 - DualKey本体のKEY1／KEY2から押下時`1`、解放時`0`を送信
 - Chain KeyからUID別のOSC Addressへ押下時`1`、解放時`0`を送信
+- DualKey KEY1／KEY2ごとに表示名、OSC Address、押下値、解放値を設定
+- Chain Keyごとに表示名、OSC Address、押下値、解放値を設定
+- 内蔵KEY1／KEY2とChain KeyでPress / ReleaseとSequenceを選択
+- Press / Releaseでは合計8件までのOSCメッセージを追加・削除・並べ替え
+- OSCメッセージの型としてFloat、Int、Stringを選択
+- SequenceではStart、End、Step、Typeを設定し、押すたびに値を進める
+- 0.8.0の旧形式で保存した単一Int設定を新しいKey設定形式へ自動移行
+- Chain Keyの設定をUID単位でNVSへ保存・復元
+- ESP32 Preferencesを用いて、デバイスごとの専用NVS名前空間へ各設定項目を個別保存
+- 区切り文字による一括シリアライズに依存せず、保存直後に全設定を読み戻して一致検証を実施
+- Web UIで現在接続中のデバイスと保存済み・未接続デバイスを分離表示
+- 未接続の保存済みデバイスは概要だけを表示し、不要な設定を削除可能
+- OSC送信先と接続中デバイスの設定を、画面下部へ追従する「すべての設定を保存」ボタンで一括保存
+- 保存と保存済みデバイスの削除は、ページを移動せずに実行
+- M5ChainOSCと共通性のあるカード型Web UI、状態バッジ、デバイス折りたたみを採用
+- Web UIは英語／日本語を切り替え可能で、選択した言語をNVSへ保存
+- 初回表示時はブラウザーの言語設定から英語／日本語を自動選択
+- 折りたたみボタンをM5ChainOSCと同じデバイス見出し左側へ配置
+- 左右Chainポートの接続状態を独立して追跡
 
 ## OSC Address
 
@@ -111,6 +130,14 @@ pio device monitor
 
 COMポートを固定する場合は、ローカル環境だけで使用する`platformio_override.ini`などから`upload_port`と`monitor_port`を指定してください。個人環境のCOMポート番号はリポジトリへコミットしません。
 
+## GitHub Actions／Web Installer
+
+- `main`へプッシュすると、Actions画面からPlatformIOビルドを手動確認できます。
+- `v0.8.0`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
+- ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを自動配信します。
+- 公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
+- Web Installerでは、Release Assetを直接参照せずPagesと同じオリジンからファームウェアを配信します。
+
 ## Arduino IDE／PlatformIO共通化
 
 実装本体は`src/app.cpp`の`appSetup()`／`appLoop()`です。
@@ -119,7 +146,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.7.0の実機確認項目
+## 0.8.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -165,12 +192,21 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - DualKey KEY1／KEY2の押下・解放でOSCの`1`／`0`を受信できる
 - 左右のChain Keyを操作するとUID別Addressで`1`／`0`を受信できる
 - Wi-Fi設定を削除してもOSC送信先設定が保持される
+- 本体KEY1／KEY2のAddressと値を個別変更できる
+- 複数のChain KeyがUID別に設定画面へ表示される
+- Chain KeyのAddressと値を変更すると直後の操作から反映される
+- Chain Keyを抜き差し、左右移動、順序変更してもUID設定が復元される
+- 取り外したChain Keyが「保存済みデバイス（未接続）」へ移動する
+- 未接続の保存済みChain Keyの設定を削除できる
+- 画面をスクロールしても「すべての設定を保存」ボタンが追従する
+- OSC送信先と全デバイス設定を一度の操作で保存できる
+- 再接続すると同じUIDの設定が「接続中のデバイス」へ戻る
 
 抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わない設計です。
 
 ## 次の段階
 
-実機確認後、DualKey本体とChainデバイスのUID単位設定、複数OSCメッセージ、M5ChainOSC互換プリセットの読み込みへ進みます。
+実機確認後、複数OSCメッセージ、Press／Releaseの型選択、M5ChainOSC互換プリセットの読み込みへ進みます。
 
 ## License
 

@@ -17,6 +17,10 @@ struct DebouncedKey {
 };
 
 Adafruit_NeoPixel keyLeds(LED_COUNT, LED_DATA_PIN, NEO_GRB + NEO_KHZ800);
+// The two WS2812 LEDs are wired in the opposite order to KEY1/KEY2.
+// Keep the key/OSC numbering unchanged and translate only the LED index.
+constexpr uint8_t KEY_LED_INDEX[] = {1, 0};
+static_assert(LED_COUNT == 2, "DualKey LED mapping requires two LEDs");
 DebouncedKey keys[] = {
     {KEY1_PIN, "KEY1", false, false, 0},
     {KEY2_PIN, "KEY2", false, false, 0},
@@ -31,7 +35,8 @@ uint32_t pressedColor() {
 }
 
 void updateLed(size_t index, bool pressed) {
-  keyLeds.setPixelColor(index, pressed ? pressedColor() : idleColor());
+  keyLeds.setPixelColor(KEY_LED_INDEX[index],
+                        pressed ? pressedColor() : idleColor());
   keyLeds.show();
 }
 
@@ -75,7 +80,8 @@ void dualKeyHardwareSetup() {
     keys[index].rawPressed = pressed;
     keys[index].stablePressed = pressed;
     keys[index].changedAtMs = millis();
-    keyLeds.setPixelColor(index, pressed ? pressedColor() : idleColor());
+    keyLeds.setPixelColor(KEY_LED_INDEX[index],
+                          pressed ? pressedColor() : idleColor());
   }
   keyLeds.show();
 

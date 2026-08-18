@@ -26,6 +26,7 @@ struct ChainPortContext {
   HardwareSerial* serial;
   uint8_t rxPin;
   uint8_t txPin;
+  uint8_t portMask;
   Chain bus;
   DeviceSnapshot devices[CHAIN_MAX_DEVICES];
   uint16_t deviceCount;
@@ -35,11 +36,12 @@ struct ChainPortContext {
   unsigned long lastKeyPollMs;
 
   ChainPortContext(const char* portName, HardwareSerial* hardwareSerial,
-                   uint8_t rx, uint8_t tx)
+                   uint8_t rx, uint8_t tx, uint8_t mask)
       : name(portName),
         serial(hardwareSerial),
         rxPin(rx),
         txPin(tx),
+        portMask(mask),
         devices{},
         deviceCount(0),
         connected(false),
@@ -49,9 +51,9 @@ struct ChainPortContext {
 };
 
 ChainPortContext portG5G6("G5_G6", &Serial2, CHAIN_G5_G6_RX_PIN,
-                          CHAIN_G5_G6_TX_PIN);
+                          CHAIN_G5_G6_TX_PIN, 0x01);
 ChainPortContext portG47G48("G47_G48", &Serial1, CHAIN_G47_G48_RX_PIN,
-                            CHAIN_G47_G48_TX_PIN);
+                            CHAIN_G47_G48_TX_PIN, 0x02);
 
 uint8_t colorBlue[] = {0, 0, 255};
 uint8_t colorOrange[] = {255, 64, 0};
@@ -277,6 +279,7 @@ void pollKeys(ChainPortContext& port) {
 void scanChainPort(ChainPortContext& port) {
   const bool connected = port.bus.isDeviceConnected(1, 20);
   if (!connected) {
+    oscBeginChainPortUpdate(port.portMask);
     if (port.connected || port.firstScan) {
       Serial.printf(
           "[ChainOSCmini][CHAIN][%s] state=DISCONNECTED devices=0\n",
@@ -339,6 +342,15 @@ void scanChainPort(ChainPortContext& port) {
   }
   if (uidError) {
     return;
+  }
+
+  oscBeginChainPortUpdate(port.portMask);
+  for (uint16_t index = 0; index < reportedCount; ++index) {
+    if (currentDevices[index].type == CHAIN_KEY_TYPE_CODE &&
+        currentDevices[index].uidValid) {
+      oscRegisterChainKey(currentDevices[index].uid, UID_SIZE,
+                          port.portMask);
+    }
   }
 
   const bool changed = snapshotChanged(port, currentDevices, reportedCount);

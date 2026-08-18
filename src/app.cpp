@@ -7,6 +7,7 @@
 #include "chain_port.h"
 #include "diagnostics.h"
 #include "dualkey_hardware.h"
+#include "key_settings.h"
 #include "network_manager.h"
 #include "osc_manager.h"
 
@@ -43,6 +44,7 @@ void appLoop() {
   if (!bootDiagnosticsPrinted && now >= BOOT_DIAGNOSTICS_DELAY_MS) {
     bootDiagnosticsPrinted = true;
     printBootDiagnostics();
+    keySettingsPrintState();
     printHeartbeat();
     lastHeartbeatMs = now;
   } else if (bootDiagnosticsPrinted &&

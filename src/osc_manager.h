@@ -7,4 +7,7 @@ const String& oscTargetHost();
 uint16_t oscTargetPort();
 bool oscSaveTarget(const String& host, uint16_t port);
 void oscSendDualKey(uint8_t keyNumber, bool pressed);
+void oscBeginChainPortUpdate(uint8_t portMask);
+void oscRegisterChainKey(const uint8_t* uid, size_t uidLength,
+                         uint8_t portMask);
 void oscSendChainKey(const uint8_t* uid, size_t uidLength, bool pressed);
