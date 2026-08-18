@@ -15,6 +15,9 @@ struct DeviceSnapshot {
   chain_device_type_t type;
   uint8_t uid[UID_SIZE];
   bool uidValid;
+  uint8_t lastButtonStatus;
+  bool buttonInitialized;
+  bool keyReadErrorReported;
 };
 
 Chain chainBus;
@@ -23,6 +26,10 @@ uint16_t previousCount = 0;
 bool previousConnected = false;
 bool firstScan = true;
 unsigned long lastScanMs = 0;
+unsigned long lastKeyPollMs = 0;
+
+uint8_t colorBlue[] = {0, 0, 255};
+uint8_t colorOrange[] = {255, 64, 0};
 
 const char* chainStatusName(chain_status_t status) {
   switch (status) {
@@ -63,6 +70,133 @@ void printUid(const DeviceSnapshot& device) {
 
   for (size_t index = 0; index < UID_SIZE; ++index) {
     Serial.printf("%02X", device.uid[index]);
+  }
+}
+
+bool setKeyLed(DeviceSnapshot& device, uint8_t* color,
+               const char* colorName) {
+  uint8_t operationStatus = 0;
+  const chain_status_t status =
+      chainBus.setRGBValue(device.id, 0, 1, color, 3, &operationStatus, 100);
+  if (status == CHAIN_OK && operationStatus != 0) {
+    return true;
+  }
+
+  Serial.printf(
+      "[ChainOSCmini][CHAIN_KEY] led_error id=%u color=%s status=%d(%s) "
+      "operation=%u\n",
+      device.id, colorName, static_cast<int>(status),
+      chainStatusName(status), operationStatus);
+  return false;
+}
+
+void initializeKey(DeviceSnapshot& device) {
+  uint8_t operationStatus = 0;
+  const chain_status_t brightnessStatus = chainBus.setRGBLight(
+      device.id, CHAIN_KEY_LED_BRIGHTNESS, &operationStatus,
+      CHAIN_SAVE_FLASH_DISABLE, 100);
+  if (brightnessStatus != CHAIN_OK || operationStatus == 0) {
+    Serial.printf(
+        "[ChainOSCmini][CHAIN_KEY] brightness_error id=%u status=%d(%s) "
+        "operation=%u\n",
+        device.id, static_cast<int>(brightnessStatus),
+        chainStatusName(brightnessStatus), operationStatus);
+  }
+
+  uint8_t rawStatus = 0;
+  const chain_status_t status =
+      chainBus.getKeyButtonStatus(device.id, &rawStatus, 100);
+  if (status != CHAIN_OK) {
+    Serial.printf(
+        "[ChainOSCmini][CHAIN_KEY] init_error id=%u status=%d(%s)\n",
+        device.id, static_cast<int>(status), chainStatusName(status));
+    device.buttonInitialized = false;
+    return;
+  }
+
+  device.lastButtonStatus = rawStatus != 0 ? 1 : 0;
+  device.buttonInitialized = true;
+  device.keyReadErrorReported = false;
+  setKeyLed(device,
+            device.lastButtonStatus != 0 ? colorOrange : colorBlue,
+            device.lastButtonStatus != 0 ? "ORANGE" : "BLUE");
+
+  Serial.printf("[ChainOSCmini][CHAIN_KEY] ready id=%u uid=", device.id);
+  printUid(device);
+  Serial.printf(" initial=%s led=%s\n",
+                device.lastButtonStatus != 0 ? "PRESSED" : "RELEASED",
+                device.lastButtonStatus != 0 ? "ORANGE" : "BLUE");
+}
+
+void initializeKeys() {
+  for (uint16_t index = 0; index < previousCount; ++index) {
+    if (previousDevices[index].type == CHAIN_KEY_TYPE_CODE) {
+      initializeKey(previousDevices[index]);
+    }
+  }
+}
+
+void drainKeyReports(uint16_t id) {
+  chain_button_press_type_t ignoredType;
+  while (chainBus.getKeyButtonPressStatus(id, &ignoredType)) {
+    // Raw pressed/released state is used by this diagnostic firmware. Active
+    // single/double/long-press reports still have to be consumed because the
+    // M5Chain library stores each report in a dynamically allocated node.
+  }
+}
+
+void drainAllKeyReports() {
+  for (uint16_t id = 1; id <= CHAIN_MAX_DEVICES; ++id) {
+    drainKeyReports(id);
+  }
+}
+
+void pollKeys() {
+  if (!previousConnected) {
+    return;
+  }
+
+  for (uint16_t index = 0; index < previousCount; ++index) {
+    DeviceSnapshot& device = previousDevices[index];
+    if (device.type != CHAIN_KEY_TYPE_CODE) {
+      continue;
+    }
+
+    uint8_t rawStatus = 0;
+    const chain_status_t status =
+        chainBus.getKeyButtonStatus(device.id, &rawStatus, 50);
+    drainKeyReports(device.id);
+    if (status != CHAIN_OK) {
+      if (!device.keyReadErrorReported) {
+        Serial.printf(
+            "[ChainOSCmini][CHAIN_KEY] read_error id=%u status=%d(%s)\n",
+            device.id, static_cast<int>(status), chainStatusName(status));
+        device.keyReadErrorReported = true;
+      }
+      continue;
+    }
+
+    device.keyReadErrorReported = false;
+    const uint8_t buttonStatus = rawStatus != 0 ? 1 : 0;
+    if (!device.buttonInitialized) {
+      device.lastButtonStatus = buttonStatus;
+      device.buttonInitialized = true;
+      setKeyLed(device, buttonStatus != 0 ? colorOrange : colorBlue,
+                buttonStatus != 0 ? "ORANGE" : "BLUE");
+      continue;
+    }
+    if (buttonStatus == device.lastButtonStatus) {
+      continue;
+    }
+
+    device.lastButtonStatus = buttonStatus;
+    const bool pressed = buttonStatus != 0;
+    setKeyLed(device, pressed ? colorOrange : colorBlue,
+              pressed ? "ORANGE" : "BLUE");
+    Serial.printf("[ChainOSCmini][CHAIN_KEY] id=%u uid=", device.id);
+    printUid(device);
+    Serial.printf(" state=%s led=%s\n", pressed ? "PRESSED" : "RELEASED",
+                  pressed ? "ORANGE" : "BLUE");
   }
 }
 
@@ -113,6 +247,7 @@ void scanChainPort() {
     }
     previousConnected = false;
     previousCount = 0;
+    drainAllKeyReports();
     firstScan = false;
     return;
   }
@@ -171,13 +306,16 @@ void scanChainPort() {
     return;
   }
 
-  if (snapshotChanged(currentDevices, reportedCount)) {
+  const bool changed = snapshotChanged(currentDevices, reportedCount);
+  if (changed) {
     Serial.printf("[ChainOSCmini][CHAIN] state=%s\n",
                   previousConnected ? "CHANGED" : "CONNECTED");
     printSnapshot(currentDevices, reportedCount);
+    drainAllKeyReports();
+    saveSnapshot(currentDevices, reportedCount);
+    previousConnected = true;
+    initializeKeys();
   }
-
-  saveSnapshot(currentDevices, reportedCount);
   previousConnected = true;
   firstScan = false;
 }
@@ -201,9 +339,13 @@ void chainPortUpdate() {
   if (firstScan && now < BOOT_DIAGNOSTICS_DELAY_MS) {
     return;
   }
-  if (now - lastScanMs < CHAIN_SCAN_INTERVAL_MS) {
-    return;
+  if (now - lastScanMs >= CHAIN_SCAN_INTERVAL_MS) {
+    lastScanMs = now;
+    scanChainPort();
   }
-  lastScanMs = now;
-  scanChainPort();
+
+  if (now - lastKeyPollMs >= CHAIN_KEY_POLL_INTERVAL_MS) {
+    lastKeyPollMs = now;
+    pollKeys();
+  }
 }
