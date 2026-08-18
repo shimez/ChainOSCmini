@@ -5,23 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111827">
   <title>ChainOSCmini</title>
-  <meta name="description" content="ChainOSCminiのWeb Installer案内ページです。">
+  <meta name="description" content="ChainOSCminiのクイックスタート、ユーザーガイド、Web Installerへの案内ページです。">
   <style>
-    :root{color-scheme:dark;--bg:#090d18;--text:#f8fafc;--muted:#aab4c5;--line:#2a3850;--accent:#7c5cff;--accent2:#4f8cff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:radial-gradient(circle at 50% -10%,#24345d 0,transparent 38%),var(--bg)}main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:70px 0 44px;text-align:center}h1{margin:0;font-size:clamp(36px,8vw,56px);letter-spacing:-.04em}.lead{margin:15px auto 0;color:var(--muted);font-size:18px;line-height:1.75}.card{margin-top:34px;padding:30px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,#121b2c,#0f1726);box-shadow:0 24px 65px #0006}.button{display:inline-block;margin-top:18px;padding:14px 24px;border-radius:12px;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:700;text-decoration:none}.note{margin:26px auto 0;color:#c7d0df;font-size:13px;line-height:1.65}footer{margin-top:24px;color:#77849a;font-size:13px}footer a{color:#aebdf7}
+    :root{color-scheme:dark;--bg:#090d18;--text:#f8fafc;--muted:#aab4c5;--line:#2a3850;--accent:#7c5cff;--accent2:#4f8cff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:radial-gradient(circle at 50% -10%,#24345d 0,transparent 38%),var(--bg)}main{width:min(900px,calc(100% - 32px));margin:0 auto;padding:56px 0 44px}.hero{text-align:center;margin-bottom:30px}h1{margin:0;font-size:clamp(36px,8vw,56px);letter-spacing:-.04em}.lead{margin:15px auto 0;color:var(--muted);font-size:18px;line-height:1.75}.hero-links{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.hero-links a{padding:9px 14px;border:1px solid #4b5b75;border-radius:10px;color:#e5ebf5;text-decoration:none;font-size:14px;font-weight:700}.hero-links .primary{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2))}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{display:flex;min-height:230px;flex-direction:column;padding:27px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,#121b2c,#0f1726);box-shadow:0 24px 65px #0005}.label{color:#9fb0ca;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.card h2{margin:10px 0 8px}.card p{margin:0 0 22px;color:var(--muted);line-height:1.7}.button{display:block;margin-top:auto;padding:14px 18px;border-radius:12px;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:700;text-align:center;text-decoration:none}.note{margin:26px auto 0;color:#c7d0df;font-size:13px;line-height:1.65;text-align:center}footer{margin-top:24px;color:#77849a;font-size:13px;text-align:center}footer a{color:#aebdf7}@media(max-width:680px){main{padding-top:36px}.grid{grid-template-columns:1fr}.card{min-height:0}}
   </style>
 </head>
 <body>
   <main>
-    <h1>ChainOSCmini</h1>
-    <p class="lead">Chain DualKey上で動作する、開発中の小型OSCコントローラーです。</p>
-    <section class="card">
-      <h2>Web Installer</h2>
-      <p class="lead">デスクトップ版ChromeまたはEdgeからファームウェアを書き込めます。</p>
-      <a class="button" href="installer/">Web Installerを開く</a>
+    <header class="hero">
+      <h1>ChainOSCmini</h1>
+      <p class="lead">Chain DualKey上で動作する、開発中の小型OSCコントローラーです。</p>
+      <nav class="hero-links" aria-label="Primary links"><a href="quick-start-presets/">クイックスタート</a><a class="primary" href="installer/">Web Installer</a></nav>
+    </header>
+    <section class="grid" aria-label="ChainOSCmini resources">
+      <article class="card"><span class="label">Quick Start</span><h2>プリセットで始める</h2><p>ファームウェアの書き込みから、Keyプリセットを使ってVRChatで動作確認するまでを案内します。</p><a class="button" href="quick-start-presets/">クイックスタートを読む</a></article>
+      <article class="card"><span class="label">Quick Start · English</span><h2>Start with a Preset</h2><p>Install the firmware, configure VRChat, import a Key preset, and test OSC.</p><a class="button" href="en/quick-start-presets/">Read Quick Start</a></article>
+      <article class="card"><span class="label">Documentation</span><h2>日本語ユーザーガイド</h2><p>Wi-Fi設定、Web UI、Key、Sequence、JSONバックアップとプリセットを説明します。</p><a class="button" href="user-guide/">ユーザーガイドを読む</a></article>
+      <article class="card"><span class="label">Documentation · English</span><h2>English User Guide</h2><p>Learn Wi-Fi setup, Key parameters, presets, and JSON backup.</p><a class="button" href="en/user-guide/">Read User Guide</a></article>
+      <article class="card"><span class="label">Firmware</span><h2>Web Installer</h2><p>ChromeまたはEdgeからChain DualKeyへChainOSCminiをインストールできます。</p><a class="button" href="installer/">Web Installerを開く</a></article>
     </section>
     <p class="note">ChainOSCminiは個人が開発する非公式プロジェクトであり、M5Stack Technology Co., Ltd.の公式製品ではありません。</p>
     <footer><a href="https://github.com/shimez/ChainOSCmini">GitHub Repository</a></footer>
   </main>
 </body>
 </html>
-

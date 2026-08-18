@@ -5,9 +5,18 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.8.0
+## Version 0.9.0
 
-0.7.0までの基本OSC送信に、本体キーとChain Keyの個別設定を追加した開発版です。Chain Keyの設定はUID単位で保存され、左右の移動や接続順序変更後も復元されます。
+0.8.0のキー設定機能へ、全体設定のJSONバックアップ／復元と、M5ChainOSC互換のデバイスプリセットを追加した開発版です。
+
+- OSC送信先、UI言語、DualKey本体キー、保存済みChain KeyをJSONで一括エクスポート／インポート
+- 全体設定JSONに`ChainOSCmini-settings`、schemaVersion、保存時のファームウェアバージョンを記録
+- Wi-Fi認証情報は全体設定JSONへ含めない
+- DualKey本体キーと接続中のChain Keyを、UIDなしの`ChainOSC-device-preset`としてエクスポート
+- M5ChainOSCとChainOSCminiで同じKeyプリセットを相互利用
+- 従来の`M5ChainOSC-device-preset`もインポート可能
+- JSONの形式、schemaVersion、デバイス種類、Address、型、値、メッセージ件数をインポート前に検証
+- M5ChainOSCと同様に各Key右上の「…」メニューからプリセットを操作
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
@@ -106,7 +115,7 @@ mDNSでアクセスできない場合は、シリアルログの`state=CONNECTED
 ## Arduino IDE
 
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
-2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`、`ArduinoOSC`を導入します。
+2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`、`ArduinoOSC`、`ArduinoJson`を導入します。
 3. `ChainOSCmini.ino`を開きます。
 4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
 5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
@@ -133,10 +142,18 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 ## GitHub Actions／Web Installer
 
 - `main`へプッシュすると、Actions画面からPlatformIOビルドを手動確認できます。
-- `v0.8.0`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
+- `v0.9.0`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
 - ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを自動配信します。
 - 公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
 - Web Installerでは、Release Assetを直接参照せずPagesと同じオリジンからファームウェアを配信します。
+
+## Documentation
+
+- [日本語ユーザーガイド](https://shimez.github.io/ChainOSCmini/user-guide/)
+- [English User Guide](https://shimez.github.io/ChainOSCmini/en/user-guide/)
+- [プリセット・クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start-presets/)
+- [Preset Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start-presets/)
+- [Web Installer](https://shimez.github.io/ChainOSCmini/installer/)
 
 ## Arduino IDE／PlatformIO共通化
 
@@ -146,7 +163,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.8.0の実機確認項目
+## 0.9.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -201,6 +218,17 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - 画面をスクロールしても「すべての設定を保存」ボタンが追従する
 - OSC送信先と全デバイス設定を一度の操作で保存できる
 - 再接続すると同じUIDの設定が「接続中のデバイス」へ戻る
+- 全体設定JSONをエクスポートでき、`format`が`ChainOSCmini-settings`である
+- 全体設定JSONにWi-FiのSSIDとパスワードが含まれない
+- 全体設定JSONをインポートするとOSC送信先、UI言語、本体キー、保存済みChain Keyが復元される
+- 再起動後もインポートした設定が保持される
+- Chain Keyプリセットをエクスポートでき、`format`が`ChainOSC-device-preset`である
+- DualKey本体のKEY1／KEY2にも「…」メニューが表示され、プリセットをエクスポート／インポートできる
+- Chain KeyプリセットにUIDとデバイス名が含まれない
+- M5ChainOSCでエクスポートしたKeyプリセットをChainOSCminiへインポートできる
+- ChainOSCminiでエクスポートしたKeyプリセットをM5ChainOSCへインポートできる
+- 全体設定JSONをプリセットとして選択した場合はエラーになり、設定が変化しない
+- 破損JSON、異なるformat、schemaVersion、デバイス種類、無効なAddress、9件以上のメッセージを拒否する
 
 抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わない設計です。
 

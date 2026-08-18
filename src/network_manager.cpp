@@ -1,13 +1,16 @@
 #include "network_manager.h"
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <ctype.h>
+#include <errno.h>
 #include <esp_wifi.h>
+#include <limits.h>
 #include <math.h>
 
 #include "config.h"
@@ -35,6 +38,15 @@ String savedPassword;
 enum class UiLanguage : uint8_t { ENGLISH = 0, JAPANESE = 1 };
 UiLanguage uiLanguage = UiLanguage::ENGLISH;
 bool uiLanguageConfigured = false;
+
+constexpr char SETTINGS_FORMAT_NAME[] = "ChainOSCmini-settings";
+constexpr int SETTINGS_SCHEMA_VERSION = 1;
+constexpr char DEVICE_PRESET_FORMAT_NAME[] = "ChainOSC-device-preset";
+constexpr char LEGACY_DEVICE_PRESET_FORMAT_NAME[] = "M5ChainOSC-device-preset";
+constexpr int DEVICE_PRESET_SCHEMA_VERSION = 1;
+constexpr int CHAIN_KEY_DEVICE_TYPE = 3;
+constexpr size_t MAX_IMPORT_BYTES = 32768;
+constexpr size_t MAX_PRESET_BYTES = 16384;
 
 bool isJapaneseUi() { return uiLanguage == UiLanguage::JAPANESE; }
 const char* tr(const char* english, const char* japanese) {
@@ -86,6 +98,7 @@ button{width:100%;padding:12px;background:#28a745;color:#fff;border:none;border-
 .sequence-card{margin-top:12px;padding:15px;border:1px solid #dce2ea;border-radius:10px;background:#fbfcfe}.sequence-card h3{margin-top:0}.seq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.seq-address{grid-column:1/-1}
 .save-bar{position:sticky;z-index:15;bottom:8px;display:flex;align-items:center;gap:12px;padding:10px 12px;margin:16px 0 28px;background:rgba(255,255,255,.96);border:1px solid #dce2ea;border-radius:10px;box-shadow:0 5px 18px rgba(0,0,0,.14)}.save-bar button{flex:1;margin:0;background:#28a745}.dirty-status{color:#b45f06;font-weight:bold;white-space:nowrap}.saved-device-card h2{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.btn-warning{background:#ff9800}.toast{position:fixed;z-index:30;left:50%;bottom:78px;transform:translateX(-50%);padding:11px 18px;border-radius:8px;background:#17324d;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.25)}.wifi-actions{margin-top:28px}.wifi-actions form{margin:0}
 .language-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.language-row h2{margin:0}.language-row form{margin:0;min-width:150px}.language-row select{margin:0}
+.device-menu-wrap{position:relative}.device-menu-button{width:32px;height:30px;margin:0;padding:0;background:#f1f4f8;color:#42516a;border:1px solid #dce2ea;border-radius:7px;font-size:18px}.device-menu{position:absolute;z-index:20;right:0;top:36px;width:235px;padding:7px;border:1px solid #dce2ea;border-radius:9px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18)}.device-menu[hidden]{display:none}.device-menu a,.device-menu button{display:block;width:100%;margin:0;padding:10px;border:0;border-radius:6px;background:#fff;color:#253047;text-align:left;text-decoration:none;font-size:14px}.device-menu a:hover,.device-menu button:hover{background:#f1f4f8}.tool-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tool-row a,.tool-row button{display:block;margin:0;padding:12px;border-radius:6px;background:#3267e3;color:#fff;text-align:center;text-decoration:none;font-size:16px}.import-status{min-height:20px;margin:9px 0 0;color:#526075;font-size:.9em}
 @media(max-width:720px){.system-grid,.key-grid,.seq-grid{grid-template-columns:1fr}.seq-address{grid-column:1}.osc-row{grid-template-columns:52px 1fr}.osc-row .field,.remove-msg{grid-column:2}}
 )CSS";
 
@@ -94,10 +107,16 @@ const JA=__JA__;const tx=(en,ja)=>JA?ja:en;const MAX_MSG=8;
 const enc=new TextEncoder();function bytes(value){return enc.encode(value).length}function limitBytes(input,max){while(bytes(input.value)>max)input.value=input.value.slice(0,-1)}
 function validateInput(input){const address=input.classList.contains('msg-address')||input.classList.contains('osc-address'),max=address?192:128,b=bytes(input.value);let error='';if(address){if(!input.value)error=tx('Required','必須です');else if(input.value[0]!=='/')error=tx('Start with /','「/」から始めてください');else if(/[\s#*,?\[\]{}]/.test(input.value))error=tx('Invalid character','使用できない文字があります')}else{const row=input.closest('.osc-row'),type=row?row.querySelector('.type').value:'2';if(type==='0'&&(!input.value.trim()||!Number.isFinite(Number(input.value))))error=tx('Invalid float','Float値が正しくありません');if(type==='1'&&!/^[+-]?\d+$/.test(input.value.trim()))error=tx('Invalid integer','Int値が正しくありません')}if(b>max)error=tx('Too long','長すぎます');input.classList.toggle('invalid',!!error);const small=input.parentNode.querySelector('small');if(small){small.querySelector('.err').textContent=error;small.querySelector('.bytes').textContent=b+' / '+max+' bytes'}return !error}
 function limitAndValidate(input,max){limitBytes(input,max);validateInput(input)}function validateSettingsForm(form){let valid=true;form.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(input=>{if(!validateInput(input))valid=false});if(!valid){const bad=form.querySelector('.invalid');if(bad)bad.focus();alert(tx('Please correct the highlighted OSC fields.','赤く表示されたOSC設定項目を修正してください。'))}return valid}
-function markDirty(){const status=document.getElementById('dirty-status');if(status)status.hidden=false}
+function markDirty(event){if(event&&event.target&&event.target.matches('input[type="file"]'))return;const status=document.getElementById('dirty-status');if(status)status.hidden=false}
 function showToast(message){const toast=document.getElementById('save-toast');toast.textContent=message;toast.hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.hidden=true,3000)}
 async function saveSettings(event){const form=event.currentTarget;if(!validateSettingsForm(form))return;const button=form.querySelector('.save-bar button');button.disabled=true;try{const response=await fetch('/save-all?ajax=1',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const message=await response.text();if(!response.ok)throw new Error(message);document.getElementById('dirty-status').hidden=true;showToast(message)}catch(error){alert(error.message||tx('Could not save settings.','設定を保存できませんでした。'))}finally{button.disabled=false}}
 async function deleteSavedDevice(event,form){event.preventDefault();if(!confirm(tx('Delete settings for this device?','このデバイスの設定を削除しますか？')))return;try{const response=await fetch('/delete_device?ajax=1',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const message=await response.text();if(!response.ok)throw new Error(message);form.closest('.saved-device-card').remove();showToast(message)}catch(error){alert(error.message||tx('Could not delete device settings.','デバイス設定を削除できませんでした。'))}}
+function toggleDeviceMenu(index){document.querySelectorAll('.device-menu').forEach(menu=>{if(menu.id!=='device-menu-'+index)menu.hidden=true});const menu=document.getElementById('device-menu-'+index);menu.hidden=!menu.hidden}
+function chooseSettingsFile(){document.getElementById('settings-import-file').click()}
+function showImportError(status,reason){const message=tx('Import failed. The selected JSON file is not valid for this import.','インポートに失敗しました。選択したJSONファイルはこのインポートには使用できません。')+(reason?'\n\n'+reason:'');status.textContent=message.replace(/\n+/g,' ');alert(message)}
+async function importSettings(input){const status=document.getElementById('settings-import-status');if(!input.files.length)return;const file=input.files[0];if(file.size>32768){showImportError(status,tx('The JSON file is too large.','JSONファイルが大きすぎます。'));input.value='';return}if(!confirm(tx('Import all settings in this file? Matching device settings will be overwritten.','このファイルの全設定をインポートしますか？同じデバイスの設定は上書きされます。'))){input.value='';return}status.textContent=tx('Importing...','インポート中...');try{const response=await fetch('/import_settings',{method:'POST',headers:{'Content-Type':'application/json'},body:await file.text()});const message=await response.text();if(!response.ok)throw new Error(message);status.textContent=message;setTimeout(()=>location.reload(),800)}catch(error){showImportError(status,error.message)}finally{input.value=''}}
+function chooseDevicePreset(index){document.getElementById('preset-file-'+index).click()}
+async function importDevicePreset(index,input){const status=document.getElementById('preset-status-'+index);if(!input.files.length)return;const file=input.files[0];if(file.size>16384){showImportError(status,tx('The preset file is too large.','プリセットファイルが大きすぎます。'));input.value='';return}if(!confirm(tx('Apply this preset to the selected device? Its settings will be overwritten.','選択したデバイスへこのプリセットを適用しますか？デバイス設定は上書きされます。'))){input.value='';return}status.textContent=tx('Importing preset...','プリセットをインポート中...');try{const response=await fetch('/import_device_preset?index='+index,{method:'POST',headers:{'Content-Type':'application/json'},body:await file.text()});const message=await response.text();if(!response.ok)throw new Error(message);status.textContent=message;setTimeout(()=>location.reload(),700)}catch(error){showImportError(status,error.message)}finally{input.value=''}}
 function toggleDevice(index,key){const body=document.getElementById('device-body-'+index);const button=document.getElementById('collapse-'+index);const collapsed=!body.hidden;body.hidden=collapsed;button.classList.toggle('collapsed',collapsed);button.setAttribute('aria-expanded',collapsed?'false':'true');sessionStorage.setItem('chainoscmini-collapse-'+key,collapsed?'1':'0')}
 function toggleKeyMode(prId,sqId,select){document.getElementById(prId).style.display=select.value==='1'?'none':'block';document.getElementById(sqId).style.display=select.value==='1'?'block':'none'}
 function showEvent(group,event,button){document.querySelectorAll('.event-panel[data-group="'+group+'"]').forEach(panel=>panel.style.display=panel.dataset.event===event?'block':'none');button.parentNode.querySelectorAll('.event-tab').forEach(tab=>tab.classList.remove('active'));button.classList.add('active')}
@@ -106,7 +125,7 @@ function renumber(group){const all=rows(group);['press','release'].forEach(event
 function moveMsg(button,direction){const row=button.closest('.osc-row'),sibling=direction<0?row.previousElementSibling:row.nextElementSibling;if(!sibling)return;direction<0?row.parentNode.insertBefore(row,sibling):row.parentNode.insertBefore(sibling,row);renumber(row.dataset.group);markDirty()}
 function removeMsg(button){const row=button.closest('.osc-row'),group=row.dataset.group;row.remove();renumber(group);markDirty()}
 function addMsg(button){const group=button.dataset.group,event=button.dataset.event;if(rows(group).length>=MAX_MSG)return;const list=document.getElementById('list-'+event+'-'+group),row=document.createElement('div');row.className='osc-row';row.dataset.group=group;row.dataset.event=event;row.innerHTML='<div class="order"><button type="button" class="mv" onclick="moveMsg(this,-1)">&uarr;</button><button type="button" class="mv" onclick="moveMsg(this,1)">&darr;</button></div><div class="field"><label>'+tx('OSC Address','OSCアドレス')+'</label><input class="msg-address" maxlength="192" required oninput="limitAndValidate(this,192)"><small><span class="err"></span><span class="bytes"></span></small></div><div class="field"><label>'+tx('Type','型')+'</label><select class="type" onchange="validateInput(this.closest(\'.osc-row\').querySelector(\'.msg-value\'))"><option value="0" selected>Float</option><option value="1">Int</option><option value="2">String</option></select><small></small></div><div class="field"><label>'+tx('Value','値')+'</label><input class="msg-value" maxlength="128" value="1.0" oninput="limitAndValidate(this,128)"><small><span class="err"></span><span class="bytes"></span></small></div><button type="button" class="remove-msg" onclick="removeMsg(this)">'+tx('Delete','削除')+'</button>';list.appendChild(row);renumber(group);markDirty();row.querySelector('.msg-address').focus()}
-document.addEventListener('DOMContentLoaded',()=>{const groups=new Set;document.querySelectorAll('.add-msg[data-group]').forEach(button=>groups.add(button.dataset.group));groups.forEach(renumber);document.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(validateInput);const form=document.getElementById('settings-form');if(form){form.addEventListener('input',markDirty);form.addEventListener('change',markDirty)}document.querySelectorAll('.device[data-collapse-key]').forEach(card=>{const key=card.dataset.collapseKey,index=card.dataset.deviceIndex;if(sessionStorage.getItem('chainoscmini-collapse-'+key)==='1'){const body=document.getElementById('device-body-'+index),button=document.getElementById('collapse-'+index);body.hidden=true;button.classList.add('collapsed');button.setAttribute('aria-expanded','false')}})})
+document.addEventListener('click',event=>{if(!event.target.closest('.device-menu-wrap'))document.querySelectorAll('.device-menu').forEach(menu=>menu.hidden=true)});document.addEventListener('DOMContentLoaded',()=>{const groups=new Set;document.querySelectorAll('.add-msg[data-group]').forEach(button=>groups.add(button.dataset.group));groups.forEach(renumber);document.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(validateInput);const form=document.getElementById('settings-form');if(form){form.addEventListener('input',markDirty);form.addEventListener('change',markDirty)}document.querySelectorAll('.device[data-collapse-key]').forEach(card=>{const key=card.dataset.collapseKey,index=card.dataset.deviceIndex;if(sessionStorage.getItem('chainoscmini-collapse-'+key)==='1'){const body=document.getElementById('device-body-'+index),button=document.getElementById('collapse-'+index);body.hidden=true;button.classList.add('collapsed');button.setAttribute('aria-expanded','false')}})})
 )JS";
 
 String pageStart(const char* title) {
@@ -146,6 +165,199 @@ String htmlEscape(const String& value) {
     }
   }
   return escaped;
+}
+
+String jsonString(const String& value) {
+  String output = "\"";
+  for (size_t index = 0; index < value.length(); ++index) {
+    const uint8_t c = static_cast<uint8_t>(value[index]);
+    if (c == '"') output += "\\\"";
+    else if (c == '\\') output += "\\\\";
+    else if (c == '\b') output += "\\b";
+    else if (c == '\f') output += "\\f";
+    else if (c == '\n') output += "\\n";
+    else if (c == '\r') output += "\\r";
+    else if (c == '\t') output += "\\t";
+    else if (c < 0x20) {
+      char escaped[7];
+      snprintf(escaped, sizeof(escaped), "\\u%04X", c);
+      output += escaped;
+    } else output += static_cast<char>(c);
+  }
+  output += '"';
+  return output;
+}
+
+String messageJson(const KeyOscMessage& message) {
+  return String("{\"address\":") + jsonString(message.address) +
+         ",\"value\":" + jsonString(message.valueStr) +
+         ",\"type\":" + String(static_cast<int>(message.valueType)) + "}";
+}
+
+String messageArrayJson(const KeyOscMessage* messages, uint8_t count) {
+  String output = "[";
+  for (uint8_t index = 0; index < count; ++index) {
+    if (index) output += ',';
+    output += messageJson(messages[index]);
+  }
+  output += ']';
+  return output;
+}
+
+String sequenceJson(const KeySequenceConfig& sequence) {
+  return String("{\"address\":") + jsonString(sequence.address) +
+         ",\"type\":" + String(static_cast<int>(sequence.valueType)) +
+         ",\"start\":" + String(sequence.start, 6) +
+         ",\"end\":" + String(sequence.end, 6) +
+         ",\"step\":" + String(sequence.step, 6) + "}";
+}
+
+String keySettingJson(const KeySetting& setting, bool includeIdentity) {
+  String output = "{";
+  if (includeIdentity) {
+    output += String("\"identity\":") + jsonString(setting.identity) +
+              ",\"deviceType\":" + String(CHAIN_KEY_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Key\"" +
+              ",\"displayName\":" + jsonString(setting.displayName) +
+              ",\"builtIn\":" + String(setting.builtIn ? "true" : "false");
+  } else {
+    output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
+              ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) +
+              ",\"deviceType\":" + String(CHAIN_KEY_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Key\"";
+  }
+  output += String(",\"key\":{\"mode\":") + String(static_cast<int>(setting.mode)) +
+            ",\"press\":" + messageArrayJson(setting.pressMessages, setting.pressMessageCount) +
+            ",\"release\":" + messageArrayJson(setting.releaseMessages, setting.releaseMessageCount) +
+            ",\"sequence\":" + sequenceJson(setting.sequence) + "}}";
+  return output;
+}
+
+bool validJsonAddress(String address, String& error) {
+  address.trim();
+  if (address.isEmpty() || address.length() > 192 || address[0] != '/') {
+    error = tr("OSC Address must start with / and be at most 192 bytes.", "OSC Addressは / から始め、192バイト以内にしてください。");
+    return false;
+  }
+  for (size_t index = 0; index < address.length(); ++index) {
+    const char c = address[index];
+    if (isspace(static_cast<unsigned char>(c)) || c == '#' || c == '*' ||
+        c == ',' || c == '?' || c == '[' || c == ']' || c == '{' || c == '}') {
+      error = tr("OSC Address contains an invalid character.", "OSC Addressに使用できない文字が含まれています。");
+      return false;
+    }
+  }
+  return true;
+}
+
+bool jsonMessage(JsonObjectConst object, KeyOscMessage& message, String& error) {
+  if (object.isNull() || !object["address"].is<const char*>() ||
+      !object["value"].is<const char*>() || !object["type"].is<int>()) {
+    error = tr("OSC message fields are missing.", "OSCメッセージの必須項目がありません。");
+    return false;
+  }
+  message.address = object["address"].as<const char*>();
+  message.valueStr = object["value"].as<const char*>();
+  const int type = object["type"].as<int>();
+  if (type < TYPE_FLOAT || type > TYPE_STRING || message.valueStr.length() > 128 ||
+      !validJsonAddress(message.address, error)) {
+    if (error.isEmpty()) error = tr("OSC message type or value is invalid.", "OSCメッセージの型または値が正しくありません。");
+    return false;
+  }
+  message.valueType = static_cast<ValueType>(type);
+  if (message.valueType == TYPE_INT) {
+    char* end = nullptr;
+    errno = 0;
+    const long value = strtol(message.valueStr.c_str(), &end, 10);
+    if (!end || end == message.valueStr.c_str() || *end != '\0' || errno == ERANGE ||
+        value < INT32_MIN || value > INT32_MAX) {
+      error = tr("Integer value is invalid.", "Int値が正しくありません。");
+      return false;
+    }
+  } else if (message.valueType == TYPE_FLOAT) {
+    char* end = nullptr;
+    const float value = strtof(message.valueStr.c_str(), &end);
+    if (!end || end == message.valueStr.c_str() || *end != '\0' || !isfinite(value)) {
+      error = tr("Float value is invalid.", "Float値が正しくありません。");
+      return false;
+    }
+  }
+  return true;
+}
+
+bool jsonSequence(JsonObjectConst object, KeySequenceConfig& sequence, String& error) {
+  if (object.isNull() || !object["address"].is<const char*>() ||
+      !object["type"].is<int>() || !object.containsKey("start") ||
+      !object.containsKey("end") || !object.containsKey("step")) {
+    error = tr("Sequence fields are missing.", "シーケンスの必須項目がありません。");
+    return false;
+  }
+  sequence.address = object["address"].as<const char*>();
+  const int type = object["type"].as<int>();
+  sequence.start = object["start"].as<float>();
+  sequence.end = object["end"].as<float>();
+  sequence.step = object["step"].as<float>();
+  if (type < TYPE_FLOAT || type > TYPE_STRING ||
+      !isfinite(sequence.start) || !isfinite(sequence.end) ||
+      !isfinite(sequence.step) || !validJsonAddress(sequence.address, error)) {
+    if (error.isEmpty()) error = tr("Sequence values are invalid.", "シーケンスの値が正しくありません。");
+    return false;
+  }
+  sequence.valueType = static_cast<ValueType>(type);
+  keySettingsNormalizeSequence(sequence);
+  return true;
+}
+
+bool keySettingFromJson(JsonObjectConst object, KeySetting& candidate,
+                        bool includeIdentity, String& error) {
+  if (object.isNull() || !object["deviceType"].is<int>() ||
+      object["deviceType"].as<int>() != CHAIN_KEY_DEVICE_TYPE) {
+    error = tr("Device type is not Key.", "デバイス種類がKeyではありません。");
+    return false;
+  }
+  if (includeIdentity) {
+    if (!object["identity"].is<const char*>() ||
+        !object["displayName"].is<const char*>()) {
+      error = tr("Device identity or name is missing.", "デバイス識別子または名前がありません。");
+      return false;
+    }
+    candidate.identity = object["identity"].as<const char*>();
+    candidate.displayName = object["displayName"].as<const char*>();
+    candidate.identity.trim();
+    candidate.displayName.trim();
+    const bool validIdentity = candidate.identity == "dualkey:1" ||
+                               candidate.identity == "dualkey:2" ||
+                               (candidate.identity.startsWith("chain:") && candidate.identity.length() > 6);
+    if (!validIdentity || candidate.displayName.isEmpty() || candidate.displayName.length() > 64) {
+      error = tr("Device identity or name is invalid.", "デバイス識別子または名前が正しくありません。");
+      return false;
+    }
+    candidate.builtIn = candidate.identity.startsWith("dualkey:");
+  }
+  JsonObjectConst key = object["key"].as<JsonObjectConst>();
+  if (key.isNull() || !key["mode"].is<int>() ||
+      !key["press"].is<JsonArrayConst>() || !key["release"].is<JsonArrayConst>()) {
+    error = tr("Key settings are missing.", "Key設定がありません。");
+    return false;
+  }
+  const int mode = key["mode"].as<int>();
+  JsonArrayConst press = key["press"].as<JsonArrayConst>();
+  JsonArrayConst release = key["release"].as<JsonArrayConst>();
+  if (mode < MODE_PRESS_RELEASE || mode > MODE_SEQUENCE ||
+      press.size() + release.size() > MAX_KEY_OSC_MESSAGES) {
+    error = tr("Key mode or message count is invalid.", "キーモードまたはメッセージ数が正しくありません。");
+    return false;
+  }
+  candidate.mode = static_cast<KeyMode>(mode);
+  candidate.pressMessageCount = static_cast<uint8_t>(press.size());
+  candidate.releaseMessageCount = static_cast<uint8_t>(release.size());
+  uint8_t index = 0;
+  for (JsonObjectConst message : press)
+    if (!jsonMessage(message, candidate.pressMessages[index++], error)) return false;
+  index = 0;
+  for (JsonObjectConst message : release)
+    if (!jsonMessage(message, candidate.releaseMessages[index++], error)) return false;
+  return jsonSequence(key["sequence"].as<JsonObjectConst>(), candidate.sequence, error);
 }
 
 void sendProvisioningPage(const String& message = String()) {
@@ -240,11 +452,31 @@ void appendKeyCard(String& html, const KeySetting& setting, size_t cardIndex) {
   html += F("</span> ");
   html += htmlEscape(setting.displayName);
   html += String(" <span class='badge badge-on'>") + tr("Connected", "接続済み") + "</span>";
-  html += F("</h2></div><div id='device-body-");
+  html += F("</h2>");
+  html += F("<div class='device-menu-wrap'><button class='device-menu-button' type='button' aria-label='Device menu' onclick='toggleDeviceMenu(");
+  html += cardIndex;
+  html += F(")'>&hellip;</button><div id='device-menu-");
+  html += cardIndex;
+  html += F("' class='device-menu' hidden><a href='/export_device_preset?index=");
+  html += cardIndex;
+  html += F("'>");
+  html += tr("Export Preset (JSON)", "プリセットをエクスポート（JSON）");
+  html += F("</a><button type='button' onclick='chooseDevicePreset(");
+  html += cardIndex;
+  html += F(")'>");
+  html += tr("Import Preset (JSON)", "プリセットをインポート（JSON）");
+  html += F("</button></div><input id='preset-file-");
+  html += cardIndex;
+  html += F("' type='file' accept='application/json,.json' hidden onchange='importDevicePreset(");
+  html += cardIndex;
+  html += F(",this)'></div>");
+  html += F("</div><div id='device-body-");
   html += cardIndex;
   html += F("' class='device-body'><div class='uid'>");
   html += htmlEscape(setting.identity);
-  html += F("</div><input type='hidden' name='identity_");
+  html += F("</div><p id='preset-status-");
+  html += cardIndex;
+  html += F("' class='import-status'></p><input type='hidden' name='identity_");
   html += cardIndex;
   html += F("' value='");
   html += htmlEscape(setting.identity);
@@ -326,11 +558,6 @@ void sendStatusPage(const String& message = String()) {
   html += F(">English</option><option value='ja'");
   if (isJapaneseUi()) html += F(" selected");
   html += F(">日本語</option></select></form></div>");
-  if (!message.isEmpty()) {
-    html += F("<p class='status'>");
-    html += htmlEscape(message);
-    html += F("</p>");
-  }
   html += F("<div class='card'><h2>"); html += tr("System", "システム");
   html += F("</h2><p class='status'>"); html += tr("Wi-Fi connected", "Wi-Fi接続済み");
   html += F("</p><div class='system-grid'><div class='system-item'><strong>Version</strong>");
@@ -340,6 +567,27 @@ void sendStatusPage(const String& message = String()) {
   html += F("</code></div><div class='system-item'><strong>mDNS</strong><code>http://");
   html += WIFI_MDNS_HOST;
   html += F(".local/</code></div></div></div>");
+  html += F("<div class='card'><h2>WiFi</h2><p class='meta'>IP: ");
+  html += WiFi.localIP().toString();
+  html += F("</p><form method='post' action='/forget-wifi' onsubmit=\"return confirm('");
+  html += tr("Delete WiFi settings?", "Wi-Fi設定を削除しますか？");
+  html += F("')\"><button class='danger' type='submit'>");
+  html += tr("Delete WiFi Settings", "Wi-Fi設定を削除");
+  html += F("</button></form></div>");
+  html += F("<div class='card backup-tools'><h2>");
+  html += tr("Settings Backup &amp; Restore", "設定のバックアップと復元");
+  html += F("</h2><p class='note'>");
+  html += tr("Back up or restore all ChainOSCmini settings as versioned JSON. WiFi credentials are not included.", "ChainOSCminiの全設定をバージョン付きJSONでバックアップ・復元します。Wi-Fi認証情報は含まれません。");
+  html += F("</p><div class='tool-row'><a href='/export_settings'>");
+  html += tr("Export Settings (JSON)", "設定をエクスポート（JSON）");
+  html += F("</a><button type='button' onclick='chooseSettingsFile()'>");
+  html += tr("Import Settings (JSON)", "設定をインポート（JSON）");
+  html += F("</button></div><input id='settings-import-file' type='file' accept='application/json,.json' hidden onchange='importSettings(this)'><p id='settings-import-status' class='import-status'></p></div>");
+  if (!message.isEmpty()) {
+    html += F("<p class='status'>");
+    html += htmlEscape(message);
+    html += F("</p>");
+  }
   html += F("<form id='settings-form' method='post' action='/save-all' onsubmit='saveSettings(event);return false'><div class='card'><h2>"); html += tr("OSC Target", "OSC送信先"); html += F("</h2>");
   html += F("<label for='osc_host'>"); html += tr("Host or IP address", "ホスト名またはIPアドレス"); html += F("</label>");
   html += F("<input id='osc_host' name='osc_host' maxlength='253' required value='");
@@ -377,9 +625,6 @@ void sendStatusPage(const String& message = String()) {
       appendSavedDeviceCard(html, *setting);
     }
   }
-  html += F("<div class='card wifi-actions'><h2>"); html += tr("Wi-Fi Settings", "Wi-Fi設定");
-  html += F("</h2><form method='post' action='/forget-wifi' onsubmit=\"return confirm('"); html += tr("Delete saved Wi-Fi settings?", "保存済みWi-Fi設定を削除しますか？"); html += F("')\"><button class='danger' type='submit'>");
-  html += tr("Forget Wi-Fi Settings", "Wi-Fi設定を削除"); html += F("</button></form></div>");
   sendPage(html);
 }
 
@@ -507,6 +752,214 @@ void handleDeleteDevice() {
     return;
   }
   sendActionResult(200, tr("Device settings deleted.", "デバイス設定を削除しました。"));
+}
+
+KeySetting* requestedConnectedSetting(bool allowBuiltIn) {
+  if (!server.hasArg("index")) return nullptr;
+  const String text = server.arg("index");
+  for (size_t index = 0; index < text.length(); ++index)
+    if (!isdigit(static_cast<unsigned char>(text[index]))) return nullptr;
+  const int requested = text.toInt();
+  int cardIndex = 0;
+  for (size_t index = 0; index < keySettingsCount(); ++index) {
+    KeySetting* setting = keySettingsAt(index);
+    if (!setting || (!setting->builtIn && setting->connectedPortMask == 0)) continue;
+    if (cardIndex++ == requested)
+      return allowBuiltIn || !setting->builtIn ? setting : nullptr;
+  }
+  return nullptr;
+}
+
+void handleExportDevicePreset() {
+  KeySetting* setting = requestedConnectedSetting(true);
+  if (!setting) {
+    server.send(404, "text/plain; charset=utf-8",
+                tr("The selected connected Key was not found.", "選択した接続済みKeyが見つかりません。"));
+    return;
+  }
+  server.sendHeader("Content-Disposition",
+                    "attachment; filename=\"ChainOSC-Key-preset.json\"");
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json; charset=utf-8",
+              keySettingJson(*setting, false));
+}
+
+void handleImportDevicePreset() {
+  KeySetting* current = requestedConnectedSetting(true);
+  if (!current) {
+    server.send(404, "text/plain; charset=utf-8",
+                tr("The selected connected Key was not found.", "選択した接続済みKeyが見つかりません。"));
+    return;
+  }
+  String body = server.arg("plain");
+  if (body.isEmpty()) {
+    server.send(400, "text/plain; charset=utf-8", tr("Preset file is empty.", "プリセットファイルが空です。"));
+    return;
+  }
+  if (body.length() > MAX_PRESET_BYTES) {
+    server.send(413, "text/plain; charset=utf-8", tr("Preset file exceeds 16 KiB.", "プリセットファイルが16 KiBを超えています。"));
+    return;
+  }
+  // Parse the mutable String buffer in zero-copy mode. Keep body alive until
+  // every JsonVariant has been consumed because the document references it.
+  DynamicJsonDocument document(16384);
+  const DeserializationError parseError =
+      deserializeJson(document, body.begin(), body.length());
+  if (parseError) {
+    server.send(400, "text/plain; charset=utf-8", String(tr("Invalid JSON: ", "JSONが正しくありません: ")) + parseError.c_str());
+    return;
+  }
+  JsonObjectConst root = document.as<JsonObjectConst>();
+  const String format = root["format"].is<const char*>()
+                            ? String(root["format"].as<const char*>()) : String();
+  if (root.isNull() || (format != DEVICE_PRESET_FORMAT_NAME &&
+                        format != LEGACY_DEVICE_PRESET_FORMAT_NAME)) {
+    server.send(400, "text/plain; charset=utf-8", tr("This is not a supported ChainOSC device preset.", "対応するChainOSCデバイスプリセットではありません。"));
+    return;
+  }
+  if (!root["schemaVersion"].is<int>() ||
+      root["schemaVersion"].as<int>() != DEVICE_PRESET_SCHEMA_VERSION) {
+    server.send(400, "text/plain; charset=utf-8", tr("Unsupported or missing preset schemaVersion.", "プリセットのschemaVersionがないか、対応していません。"));
+    return;
+  }
+  KeySetting candidate = *current;
+  String error;
+  if (!keySettingFromJson(root, candidate, false, error)) {
+    server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
+    return;
+  }
+  if (!keySettingsSave(candidate)) {
+    server.send(507, "text/plain; charset=utf-8", tr("The preset could not be written to storage.", "プリセットをストレージへ書き込めませんでした。"));
+    return;
+  }
+  server.send(200, "text/plain; charset=utf-8", tr("Key preset imported.", "Keyプリセットをインポートしました。"));
+}
+
+void handleExportSettings() {
+  server.sendHeader("Content-Disposition", "attachment; filename=\"ChainOSCmini-settings-v1.json\"");
+  server.sendHeader("Cache-Control", "no-store");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json; charset=utf-8", "");
+  String header = String("{\"format\":") + jsonString(SETTINGS_FORMAT_NAME) +
+                  ",\"schemaVersion\":" + String(SETTINGS_SCHEMA_VERSION) +
+                  ",\"firmwareVersion\":" + jsonString(APP_VERSION) +
+                  ",\"wifiCredentialsIncluded\":false,\"global\":{\"oscHost\":" +
+                  jsonString(oscTargetHost()) + ",\"oscPort\":" +
+                  String(oscTargetPort()) + ",\"uiLanguage\":" +
+                  jsonString(isJapaneseUi() ? "ja" : "en") + "},\"devices\":[";
+  server.sendContent(header);
+  for (size_t index = 0; index < keySettingsCount(); ++index) {
+    KeySetting* setting = keySettingsAt(index);
+    if (!setting) continue;
+    String chunk = index ? "," : "";
+    chunk += keySettingJson(*setting, true);
+    server.sendContent(chunk);
+  }
+  server.sendContent("]}");
+  server.sendContent("");
+}
+
+void handleImportSettings() {
+  String body = server.arg("plain");
+  if (body.isEmpty()) {
+    server.send(400, "text/plain; charset=utf-8", tr("Import file is empty.", "インポートファイルが空です。"));
+    return;
+  }
+  if (body.length() > MAX_IMPORT_BYTES) {
+    server.send(413, "text/plain; charset=utf-8", tr("Import file exceeds 32 KiB.", "インポートファイルが32 KiBを超えています。"));
+    return;
+  }
+  // Chain DualKey has no PSRAM. Parsing a const String duplicates every JSON
+  // string and can exhaust internal Heap at the 32 KiB boundary. A mutable
+  // input buffer lets ArduinoJson reference strings in-place instead.
+  // Keep body alive until this handler has finished using the document.
+  DynamicJsonDocument document(32768);
+  const DeserializationError parseError =
+      deserializeJson(document, body.begin(), body.length());
+  if (parseError) {
+    server.send(400, "text/plain; charset=utf-8", String(tr("Invalid JSON: ", "JSONが正しくありません: ")) + parseError.c_str());
+    return;
+  }
+  JsonObjectConst root = document.as<JsonObjectConst>();
+  if (!root["format"].is<const char*>() ||
+      String(root["format"].as<const char*>()) != SETTINGS_FORMAT_NAME) {
+    server.send(400, "text/plain; charset=utf-8", tr("This is not a ChainOSCmini settings file.", "ChainOSCminiの全体設定ファイルではありません。"));
+    return;
+  }
+  if (!root["schemaVersion"].is<int>() ||
+      root["schemaVersion"].as<int>() != SETTINGS_SCHEMA_VERSION) {
+    server.send(400, "text/plain; charset=utf-8", tr("Unsupported or missing schemaVersion.", "schemaVersionがないか、対応していません。"));
+    return;
+  }
+  JsonObjectConst global = root["global"].as<JsonObjectConst>();
+  JsonArrayConst devices = root["devices"].as<JsonArrayConst>();
+  if (global.isNull() || devices.isNull() || devices.size() > 40 ||
+      !global["oscHost"].is<const char*>() || !global["oscPort"].is<int>()) {
+    server.send(400, "text/plain; charset=utf-8", tr("Global settings or device list is invalid.", "共通設定またはデバイス一覧が正しくありません。"));
+    return;
+  }
+  String host = global["oscHost"].as<const char*>();
+  host.trim();
+  const int port = global["oscPort"].as<int>();
+  UiLanguage importedLanguage = uiLanguage;
+  if (global["uiLanguage"].is<const char*>()) {
+    const String language = global["uiLanguage"].as<const char*>();
+    if (language != "en" && language != "ja") {
+      server.send(400, "text/plain; charset=utf-8", tr("uiLanguage must be en or ja.", "uiLanguageはenまたはjaで指定してください。"));
+      return;
+    }
+    importedLanguage = language == "ja" ? UiLanguage::JAPANESE : UiLanguage::ENGLISH;
+  }
+  if (host.isEmpty() || host.length() > 253 || port < 1 || port > 65535) {
+    server.send(400, "text/plain; charset=utf-8", tr("OSC target is out of range.", "OSC送信先の設定が範囲外です。"));
+    return;
+  }
+
+  for (size_t index = 0; index < devices.size(); ++index) {
+    KeySetting candidate;
+    String error;
+    if (!keySettingFromJson(devices[index].as<JsonObjectConst>(), candidate, true, error)) {
+      server.send(400, "text/plain; charset=utf-8", String(tr("Device ", "デバイス ")) + String(index + 1) + ": " + error);
+      return;
+    }
+    for (size_t previous = 0; previous < index; ++previous) {
+      JsonObjectConst previousObject = devices[previous].as<JsonObjectConst>();
+      if (previousObject["identity"].is<const char*>() &&
+          String(previousObject["identity"].as<const char*>()) == candidate.identity) {
+        server.send(400, "text/plain; charset=utf-8", String(tr("Duplicate device identity: ", "デバイス識別子が重複しています: ")) + candidate.identity);
+        return;
+      }
+    }
+  }
+
+  if (!oscSaveTarget(host, static_cast<uint16_t>(port))) {
+    server.send(507, "text/plain; charset=utf-8", tr("Global settings could not be written to storage.", "共通設定をストレージへ書き込めませんでした。"));
+    return;
+  }
+  for (size_t index = 0; index < devices.size(); ++index) {
+    KeySetting candidate;
+    String error;
+    if (!keySettingFromJson(devices[index].as<JsonObjectConst>(), candidate, true, error)) {
+      server.send(400, "text/plain; charset=utf-8", error);
+      return;
+    }
+    KeySetting* destination = keySettingsEnsure(
+        candidate.identity, candidate.displayName,
+        candidate.sequence.address.length() ? candidate.sequence.address : "/chainoscmini/imported");
+    if (!destination) {
+      server.send(507, "text/plain; charset=utf-8", tr("There is no space for another device setting.", "デバイス設定を追加する空きがありません。"));
+      return;
+    }
+    candidate.connectedPortMask = destination->connectedPortMask;
+    candidate.builtIn = destination->builtIn;
+    if (!keySettingsSave(candidate)) {
+      server.send(507, "text/plain; charset=utf-8", String(tr("Storage write failed at device ", "デバイス設定の書き込みに失敗しました: ")) + String(index + 1));
+      return;
+    }
+  }
+  uiLanguage = importedLanguage;
+  saveUiLanguage();
+  server.send(200, "text/plain; charset=utf-8", String(tr("Import completed. ", "インポートが完了しました。")) + String(devices.size()) + tr(" device(s) restored.", "件のデバイス設定を復元しました。"));
 }
 
 void handleSaveKey() {
@@ -733,6 +1186,10 @@ void registerRoutes() {
   server.on("/save-key", HTTP_POST, handleSaveKey);
   server.on("/save-all", HTTP_POST, handleSaveAll);
   server.on("/delete_device", HTTP_POST, handleDeleteDevice);
+  server.on("/export_settings", HTTP_GET, handleExportSettings);
+  server.on("/import_settings", HTTP_POST, handleImportSettings);
+  server.on("/export_device_preset", HTTP_GET, handleExportDevicePreset);
+  server.on("/import_device_preset", HTTP_POST, handleImportDevicePreset);
   server.on("/generate_204", HTTP_ANY, handleRoot);
   server.on("/hotspot-detect.html", HTTP_ANY, handleRoot);
   server.on("/ncsi.txt", HTTP_ANY, handleRoot);
