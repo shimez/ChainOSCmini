@@ -5,15 +5,20 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.2.0
+## Version 0.3.0
 
-Chain DualKey本体のキーとRGB LEDを実機確認するための診断版です。Wi-Fi、OSC、Web UI、設定保存、左右のChainポート制御はまだ実装していません。
+Chain DualKey本体のキー／RGB LEDに加え、片側Chainポートの通信を実機確認するための診断版です。Wi-Fi、OSC、Web UI、設定保存、反対側のChainポート制御はまだ実装していません。
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
 - 2個のWS2812Bを通常時は暗い青、押下中はオレンジで表示
 - キーイベントをUSBシリアルへ出力
 - LEDデータはGPIO21、LED電源制御はGPIO40を使用
+- GPIO5（RX）／GPIO6（TX）側のChainポートを115200bpsで初期化
+- 2秒間隔で接続状態を確認
+- 接続デバイスのID、種類、12バイトUIDをシリアル表示
+- デバイスの接続、取り外し、交換、台数・順序変更を検出
+- 抜き差し中の一時的な通信失敗では、直前の正常な列挙結果を維持
 
 電源スイッチに関係するGPIO7／GPIO8は設定も駆動も行いません。
 
@@ -32,14 +37,12 @@ Chain DualKey本体のキーとRGB LEDを実機確認するための診断版で
 ## Arduino IDE
 
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
-2. Arduino IDEのライブラリマネージャーから`Adafruit NeoPixel`を導入します。
+2. Arduino IDEのライブラリマネージャーから`Adafruit NeoPixel`と`M5Chain`を導入します。
 3. `ChainOSCmini.ino`を開きます。
 4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
 5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
 6. 実機で確認したCOMポートを選び、書き込みます。
 7. シリアルモニターを`115200 bps`で開きます。
-
-Chain DualKey向けの公式Arduinoボード定義が確認できた場合は、正式な設定へ置き換えます。
 
 ## PlatformIO
 
@@ -66,7 +69,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.2.0の実機確認項目
+## 0.3.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -81,10 +84,18 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - 押下と解放がそれぞれ1回ずつシリアルへ表示される
 - 同時押しを個別に検出できる
 - キーを繰り返し操作しても再起動しない
+- GPIO5／GPIO6側へChainデバイスを接続すると`CONNECTED`が表示される
+- 列挙された台数、ID、種類、UIDが表示される
+- デバイスを外すと`DISCONNECTED`が表示される
+- 再接続すると同じUIDが表示される
+- 複数デバイスの接続と順序変更を検出できる
+- Chainの走査中もDualKey本体のキーとLEDが動作する
+
+抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わない設計です。
 
 ## 次の段階
 
-実機確認後、`0.3.0`以降で片側Chainポートの列挙と通信検証へ進みます。左右同時利用は、その後の段階で追加します。
+実機確認後、次の段階でGPIO47（RX）／GPIO48（TX）側を追加し、左右Chainポートの同時利用と識別方法を検証します。
 
 ## License
 

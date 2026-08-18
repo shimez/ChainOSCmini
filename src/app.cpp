@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "config.h"
+#include "chain_port.h"
 #include "diagnostics.h"
 #include "dualkey_hardware.h"
 
@@ -22,12 +23,14 @@ void appSetup() {
   }
 
   dualKeyHardwareSetup();
+  chainPortSetup();
 }
 
 void appLoop() {
   const unsigned long now = millis();
 
   dualKeyHardwareUpdate();
+  chainPortUpdate();
 
   if (!bootDiagnosticsPrinted && now >= BOOT_DIAGNOSTICS_DELAY_MS) {
     bootDiagnosticsPrinted = true;

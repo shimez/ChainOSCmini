@@ -20,6 +20,14 @@ const char* resetReasonText(esp_reset_reason_t reason) {
     case ESP_RST_DEEPSLEEP: return "deep-sleep";
     case ESP_RST_BROWNOUT: return "brownout";
     case ESP_RST_SDIO: return "sdio";
+    // Newer ESP32-S3 cores report USB/JTAG-related reset reasons that are not
+    // named by every Arduino-ESP32/PlatformIO header version. Numeric cases
+    // keep the shared source compatible with both toolchains.
+    case static_cast<esp_reset_reason_t>(11): return "usb";
+    case static_cast<esp_reset_reason_t>(12): return "jtag";
+    case static_cast<esp_reset_reason_t>(13): return "efuse-error";
+    case static_cast<esp_reset_reason_t>(14): return "power-glitch";
+    case static_cast<esp_reset_reason_t>(15): return "cpu-lockup";
     case ESP_RST_UNKNOWN:
     default: return "unknown";
   }
