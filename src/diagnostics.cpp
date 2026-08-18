@@ -1,7 +1,7 @@
 #include "diagnostics.h"
 
 #include <Arduino.h>
-#include <ESP.h>
+#include <Esp.h>
 #include <esp_system.h>
 
 #include "config.h"
