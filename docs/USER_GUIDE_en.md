@@ -23,6 +23,15 @@ This guide covers initial setup and the Web UI after installing ChainOSCmini on 
 
 The ESP32-S3 supports 2.4 GHz Wi-Fi only.
 
+### Reading the built-in LEDs
+
+- Slowly pulsing purple: AP Mode, waiting for Wi-Fi setup
+- Slowly pulsing blue: connecting to Wi-Fi
+- Solid blue: connected to Wi-Fi
+- Orange: the corresponding built-in key is pressed
+
+When the key is released, its LED returns to the current Wi-Fi status color.
+
 ## 2. Open the Web UI
 
 Open `http://chainoscmini.local/` from the same network. On Windows, resolve it with:
@@ -50,7 +59,7 @@ Action Menu → Options → OSC → Enabled
 
 ## 5. Configure a Key
 
-Version 0.9.0 supports DualKey KEY1/KEY2 and Chain Key.
+Version 0.9.1 supports DualKey KEY1/KEY2 and Chain Key.
 
 ### Press / Release
 
@@ -93,4 +102,4 @@ Invalid JSON, wrong formats, unsupported device types, invalid OSC values, and m
 
 ## 10. Current scope
 
-Version 0.9.0 supports the built-in DualKey buttons and Chain Key. Encoder, Joystick, Angle, ToF, and other Chain devices are planned for later versions.
+Version 0.9.1 supports the built-in DualKey buttons and Chain Key. Encoder, Joystick, Angle, ToF, and other Chain devices are planned for later versions.

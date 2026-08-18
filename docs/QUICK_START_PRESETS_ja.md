@@ -60,7 +60,7 @@ ChainOSCminiと同じネットワークに接続したWi-FiまたはEthernetア�
 
 ## 6. Keyプリセットを入手する
 
-ChainOSCmini 0.9.0は、M5ChainOSCと共通のKeyプリセット形式を使用します。[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key)からKey用JSONをダウンロードできます。
+ChainOSCmini 0.9.1は、M5ChainOSCと共通のKeyプリセット形式を使用します。[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key)からKey用JSONをダウンロードできます。
 
 例：
 

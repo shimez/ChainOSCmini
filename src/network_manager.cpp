@@ -10,6 +10,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <esp_wifi.h>
+
+#include "dualkey_hardware.h"
 #include <limits.h>
 #include <math.h>
 
@@ -1221,6 +1223,7 @@ void startAccessPoint(const char* reason) {
     webServerStarted = true;
   }
   networkState = NetworkState::AP_MODE;
+  dualKeySetNetworkLedState(NetworkLedState::AP_MODE);
   Serial.printf(
       "[ChainOSCmini][NET] state=AP_MODE reason=%s started=%s ssid=%s "
       "ip=%s tx_power_qdbm=%d tx_power_result=%d\n",
@@ -1235,6 +1238,7 @@ void startStationConnection() {
   const esp_err_t txPowerResult =
       esp_wifi_set_max_tx_power(WIFI_TX_POWER_QDBM);
   networkState = NetworkState::CONNECTING;
+  dualKeySetNetworkLedState(NetworkLedState::CONNECTING);
   Serial.printf("[ChainOSCmini][NET] state=CONNECTING ssid_bytes=%u timeout_ms=%lu tx_power_qdbm=%d tx_power_result=%d\n",
                 static_cast<unsigned int>(savedSsid.length()),
                 WIFI_CONNECT_TIMEOUT_MS,
@@ -1244,6 +1248,7 @@ void startStationConnection() {
 
 void handleConnected() {
   networkState = NetworkState::CONNECTED;
+  dualKeySetNetworkLedState(NetworkLedState::CONNECTED);
   const bool mdnsStarted = MDNS.begin(WIFI_MDNS_HOST);
   mdnsRunning = mdnsStarted;
   if (mdnsStarted) {
@@ -1318,6 +1323,7 @@ void networkUpdate() {
     }
     WiFi.reconnect();
     networkState = NetworkState::CONNECTING;
+    dualKeySetNetworkLedState(NetworkLedState::CONNECTING);
     Serial.println("[ChainOSCmini][NET] state=RECONNECTING");
   }
 

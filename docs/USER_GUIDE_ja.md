@@ -24,6 +24,15 @@ permalink: /user-guide/
 
 Chain DualKeyのESP32-S3は**2.4 GHz帯Wi-Fiのみ**を使用します。5 GHz専用SSIDには接続できません。
 
+### 本体LEDによる接続状態の確認
+
+- 紫のゆっくりした点滅：AP Mode（Wi-Fi設定待ち）
+- 青のゆっくりした点滅：Wi-Fiへ接続中
+- 青の常時点灯：Wi-Fi接続済み
+- オレンジ：対応する本体キーを押している状態
+
+キーを離すと、その時点のWi-Fi状態を示す色へ戻ります。
+
 ## 2. 設定画面を開く
 
 同じネットワーク上のブラウザーで次を開きます。
@@ -86,7 +95,7 @@ ChainOSCminiとVRChatを実行するPCを、相互に通信できる同じネッ
 
 ## 5. Keyの設定
 
-0.9.0ではDualKey本体のKEY1／KEY2とChain Keyを設定できます。
+0.9.1ではDualKey本体のKEY1／KEY2とChain Keyを設定できます。
 
 | 項目 | 意味 |
 | --- | --- |
@@ -160,4 +169,4 @@ Keyを押すたびにStartからStepずつ値を進め、Endを越えるとStart
 
 ## 10. 現在の対応範囲
 
-Version 0.9.0はDualKey本体キーとChain Keyに対応しています。Encoder、Joystick、Angle、ToFなど、その他のChainデバイスは今後対応予定です。
+Version 0.9.1はDualKey本体キーとChain Keyに対応しています。Encoder、Joystick、Angle、ToFなど、その他のChainデバイスは今後対応予定です。

@@ -26,7 +26,30 @@ DebouncedKey keys[] = {
     {KEY2_PIN, "KEY2", false, false, 0},
 };
 
-uint32_t idleColor() {
+NetworkLedState networkLedState = NetworkLedState::CONNECTING;
+bool ledsReady = false;
+unsigned long lastAnimationMs = 0;
+
+uint8_t pulseLevel(unsigned long now, uint8_t minimum, uint8_t maximum) {
+  constexpr unsigned long kPulsePeriodMs = 2000;
+  constexpr unsigned long kHalfPeriodMs = kPulsePeriodMs / 2;
+  const unsigned long phase = now % kPulsePeriodMs;
+  const unsigned long ramp = phase <= kHalfPeriodMs
+                                 ? phase
+                                 : kPulsePeriodMs - phase;
+  return static_cast<uint8_t>(minimum +
+      (static_cast<unsigned long>(maximum - minimum) * ramp) /
+          kHalfPeriodMs);
+}
+
+uint32_t networkColor(unsigned long now) {
+  if (networkLedState == NetworkLedState::AP_MODE) {
+    const uint8_t level = pulseLevel(now, 4, 24);
+    return keyLeds.Color(level, 0, level);
+  }
+  if (networkLedState == NetworkLedState::CONNECTING) {
+    return keyLeds.Color(0, 0, pulseLevel(now, 3, 24));
+  }
   return keyLeds.Color(0, 0, 16);
 }
 
@@ -34,9 +57,13 @@ uint32_t pressedColor() {
   return keyLeds.Color(64, 16, 0);
 }
 
-void updateLed(size_t index, bool pressed) {
-  keyLeds.setPixelColor(KEY_LED_INDEX[index],
-                        pressed ? pressedColor() : idleColor());
+void renderLeds(unsigned long now) {
+  const uint32_t background = networkColor(now);
+  for (size_t index = 0; index < LED_COUNT; ++index) {
+    keyLeds.setPixelColor(KEY_LED_INDEX[index],
+                          keys[index].stablePressed ? pressedColor()
+                                                    : background);
+  }
   keyLeds.show();
 }
 
@@ -55,7 +82,7 @@ void updateKey(size_t index, unsigned long now) {
   }
 
   key.stablePressed = key.rawPressed;
-  updateLed(index, key.stablePressed);
+  renderLeds(now);
   Serial.printf("[ChainOSCmini][KEY] %s=%s uptime=%lu ms\n", key.name,
                 key.stablePressed ? "PRESSED" : "RELEASED",
                 static_cast<unsigned long>(now));
@@ -74,24 +101,34 @@ void dualKeyHardwareSetup() {
 
   keyLeds.begin();
   keyLeds.clear();
+  ledsReady = true;
 
   for (size_t index = 0; index < LED_COUNT; ++index) {
     const bool pressed = digitalRead(keys[index].pin) == LOW;
     keys[index].rawPressed = pressed;
     keys[index].stablePressed = pressed;
     keys[index].changedAtMs = millis();
-    keyLeds.setPixelColor(KEY_LED_INDEX[index],
-                          pressed ? pressedColor() : idleColor());
   }
-  keyLeds.show();
+  renderLeds(millis());
 
   Serial.println("[ChainOSCmini][GPIO] KEY1=GPIO0 KEY2=GPIO17 debounce=20ms");
   Serial.println("[ChainOSCmini][GPIO] WS2812=GPIO21 PWR_EN=GPIO40 count=2");
-  Serial.println("[ChainOSCmini][GPIO] idle=BLUE pressed=ORANGE");
+  Serial.println("[ChainOSCmini][GPIO] ap=PURPLE_PULSE connecting=BLUE_PULSE connected=BLUE pressed=ORANGE");
 }
 
 void dualKeyHardwareUpdate() {
   const unsigned long now = millis();
   updateKey(0, now);
   updateKey(1, now);
+  if (networkLedState != NetworkLedState::CONNECTED &&
+      now - lastAnimationMs >= 50) {
+    lastAnimationMs = now;
+    renderLeds(now);
+  }
+}
+
+void dualKeySetNetworkLedState(NetworkLedState state) {
+  if (networkLedState == state) return;
+  networkLedState = state;
+  if (ledsReady) renderLeds(millis());
 }

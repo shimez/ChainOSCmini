@@ -5,9 +5,14 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.9.0
+## Version 0.9.1
 
-0.8.0のキー設定機能へ、全体設定のJSONバックアップ／復元と、M5ChainOSC互換のデバイスプリセットを追加した開発版です。
+0.9.0の機能に、LEDによるWi-Fi状態表示を追加した開発版です。
+
+- AP Modeでは2個のLEDを紫でゆっくり点滅
+- Wi-Fi接続中は2個のLEDを青でゆっくり点滅
+- Wi-Fi接続後は2個のLEDを青で常時点灯
+- キー押下中は対象LEDをオレンジで表示し、解放後は現在のWi-Fi状態色へ復帰
 
 - OSC送信先、UI言語、DualKey本体キー、保存済みChain KeyをJSONで一括エクスポート／インポート
 - 全体設定JSONに`ChainOSCmini-settings`、schemaVersion、保存時のファームウェアバージョンを記録
@@ -20,7 +25,7 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
-- 2個のWS2812Bを通常時は暗い青、押下中はオレンジで表示
+- 2個のWS2812BでWi-Fi状態とキー押下状態を表示
 - キーイベントをUSBシリアルへ出力
 - LEDデータはGPIO21、LED電源制御はGPIO40を使用
 - GPIO5（RX）／GPIO6（TX）側を`G5_G6`として初期化
@@ -142,7 +147,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 ## GitHub Actions／Web Installer
 
 - `main`へプッシュすると、Actions画面からPlatformIOビルドを手動確認できます。
-- `v0.9.0`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
+- `v0.9.1`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
 - ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを自動配信します。
 - 公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
 - Web Installerでは、Release Assetを直接参照せずPagesと同じオリジンからファームウェアを配信します。
@@ -163,7 +168,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.9.0の実機確認項目
+## 0.9.1の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -172,7 +177,9 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - Chip ModelとFlash容量が想定どおり表示される
 - 1分以上動作させても再起動しない
 - 空きHeapが継続的に減少しない
-- 起動すると2個のLEDが暗い青で点灯する
+- AP Modeでは2個のLEDが紫でゆっくり点滅する
+- Wi-Fi接続中は2個のLEDが青でゆっくり点滅する
+- Wi-Fi接続後は2個のLEDが暗い青で点灯する
 - KEY1を押している間、対応するLEDだけがオレンジになる
 - KEY2を押している間、対応するLEDだけがオレンジになる
 - 押下と解放がそれぞれ1回ずつシリアルへ表示される
