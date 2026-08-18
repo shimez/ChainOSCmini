@@ -10,6 +10,7 @@
 #include <esp_wifi.h>
 
 #include "config.h"
+#include "osc_manager.h"
 
 namespace {
 
@@ -59,6 +60,22 @@ void sendPage(String html) {
   server.send(200, "text/html; charset=utf-8", html);
 }
 
+String htmlEscape(const String& value) {
+  String escaped;
+  escaped.reserve(value.length());
+  for (size_t index = 0; index < value.length(); ++index) {
+    switch (value[index]) {
+      case '&': escaped += F("&amp;"); break;
+      case '<': escaped += F("&lt;"); break;
+      case '>': escaped += F("&gt;"); break;
+      case '"': escaped += F("&quot;"); break;
+      case '\'': escaped += F("&#39;"); break;
+      default: escaped += value[index]; break;
+    }
+  }
+  return escaped;
+}
+
 void sendProvisioningPage(const String& message = String()) {
   String html = pageStart("ChainOSCmini Wi-Fi Setup");
   html += F("<h1>ChainOSCmini Wi-Fi Setup</h1>");
@@ -79,9 +96,14 @@ void sendProvisioningPage(const String& message = String()) {
   sendPage(html);
 }
 
-void sendStatusPage() {
+void sendStatusPage(const String& message = String()) {
   String html = pageStart("ChainOSCmini");
   html += F("<h1>ChainOSCmini</h1><p class='status'>Wi-Fi connected / Wi-Fi接続済み</p>");
+  if (!message.isEmpty()) {
+    html += F("<p class='status'>");
+    html += htmlEscape(message);
+    html += F("</p>");
+  }
   html += F("<p><strong>Version:</strong> ");
   html += APP_VERSION;
   html += F("</p><p><strong>IP address:</strong> <code>");
@@ -89,10 +111,39 @@ void sendStatusPage() {
   html += F("</code></p><p><strong>mDNS:</strong> <code>http://");
   html += WIFI_MDNS_HOST;
   html += F(".local/</code></p>");
-  html += F("<p class='note'>This is the network bring-up page for v0.6.0. OSC and device settings will be added in a later version.</p>");
+  html += F("<hr><h2>OSC Target / OSC送信先</h2>");
+  html += F("<form method='post' action='/save-osc'>");
+  html += F("<label for='osc_host'>Host or IP address / ホスト名またはIPアドレス</label>");
+  html += F("<input id='osc_host' name='osc_host' maxlength='253' required value='");
+  html += htmlEscape(oscTargetHost());
+  html += F("'>");
+  html += F("<label for='osc_port'>UDP Port / UDPポート</label>");
+  html += F("<input id='osc_port' name='osc_port' type='number' min='1' max='65535' required value='");
+  html += oscTargetPort();
+  html += F("'><button type='submit'>Save OSC Target / OSC送信先を保存</button></form>");
+  html += F("<p class='note'>DualKey: <code>/chainoscmini/dualkey/key1</code>, <code>/chainoscmini/dualkey/key2</code><br>Chain Key: <code>/chainoscmini/chain/key/&lt;UID&gt;</code><br>Pressed = 1, Released = 0</p>");
   html += F("<form method='post' action='/forget-wifi' onsubmit=\"return confirm('Delete saved Wi-Fi settings?')\">");
   html += F("<button class='danger' type='submit'>Forget Wi-Fi Settings</button></form>");
   sendPage(html);
+}
+
+void handleSaveOsc() {
+  String host = server.arg("osc_host");
+  String portText = server.arg("osc_port");
+  host.trim();
+  portText.trim();
+  bool numericPort = !portText.isEmpty();
+  for (size_t index = 0; numericPort && index < portText.length(); ++index) {
+    numericPort = isdigit(static_cast<unsigned char>(portText[index]));
+  }
+  const unsigned long portValue = numericPort ? portText.toInt() : 0;
+  if (host.isEmpty() || host.length() > 253 || portValue < 1 ||
+      portValue > 65535 ||
+      !oscSaveTarget(host, static_cast<uint16_t>(portValue))) {
+    sendStatusPage("Could not save OSC target. Check Host and Port. / OSC送信先を保存できませんでした。");
+    return;
+  }
+  sendStatusPage("OSC target saved. / OSC送信先を保存しました。");
 }
 
 void handleRoot() {
@@ -164,7 +215,11 @@ void handleForgetWifi() {
   Preferences preferences;
   bool cleared = false;
   if (preferences.begin(WIFI_PREFS_NAMESPACE, false)) {
-    cleared = preferences.clear();
+    const bool ssidRemoved =
+        !preferences.isKey("ssid") || preferences.remove("ssid");
+    const bool passwordRemoved =
+        !preferences.isKey("password") || preferences.remove("password");
+    cleared = ssidRemoved && passwordRemoved;
     preferences.end();
   }
   Serial.printf("[ChainOSCmini][NET] credentials_cleared=%s\n",
@@ -183,6 +238,7 @@ void registerRoutes() {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/save-wifi", HTTP_POST, handleSaveWifi);
   server.on("/forget-wifi", HTTP_POST, handleForgetWifi);
+  server.on("/save-osc", HTTP_POST, handleSaveOsc);
   server.on("/generate_204", HTTP_ANY, handleRoot);
   server.on("/hotspot-detect.html", HTTP_ANY, handleRoot);
   server.on("/ncsi.txt", HTTP_ANY, handleRoot);

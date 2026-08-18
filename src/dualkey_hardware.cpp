@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "config.h"
+#include "osc_manager.h"
 
 namespace {
 
@@ -53,6 +54,7 @@ void updateKey(size_t index, unsigned long now) {
   Serial.printf("[ChainOSCmini][KEY] %s=%s uptime=%lu ms\n", key.name,
                 key.stablePressed ? "PRESSED" : "RELEASED",
                 static_cast<unsigned long>(now));
+  oscSendDualKey(static_cast<uint8_t>(index + 1), key.stablePressed);
 }
 
 }  // namespace
@@ -87,4 +89,3 @@ void dualKeyHardwareUpdate() {
   updateKey(0, now);
   updateKey(1, now);
 }
-

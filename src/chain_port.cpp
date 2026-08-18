@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "config.h"
+#include "osc_manager.h"
 
 namespace {
 
@@ -267,6 +268,9 @@ void pollKeys(ChainPortContext& port) {
     printUid(device);
     Serial.printf(" state=%s led=%s\n", pressed ? "PRESSED" : "RELEASED",
                   pressed ? "ORANGE" : "BLUE");
+    if (device.uidValid) {
+      oscSendChainKey(device.uid, UID_SIZE, pressed);
+    }
   }
 }
 
@@ -388,4 +392,3 @@ void chainPortUpdate() {
   updatePort(portG5G6, now);
   updatePort(portG47G48, now);
 }
-

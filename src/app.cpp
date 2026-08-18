@@ -8,6 +8,7 @@
 #include "diagnostics.h"
 #include "dualkey_hardware.h"
 #include "network_manager.h"
+#include "osc_manager.h"
 
 namespace {
 
@@ -25,6 +26,7 @@ void appSetup() {
   Serial.begin(SERIAL_BAUD);
   delay(200);
 
+  oscSetup();
   networkSetup();
   dualKeyHardwareSetup();
   chainPortSetup();

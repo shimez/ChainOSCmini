@@ -5,9 +5,9 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.6.0
+## Version 0.7.0
 
-0.5.0までのDualKey本体・左右Chain機能に、Wi-Fi設定と最小Web UIを追加したネットワーク診断版です。OSCと本格的なデバイス設定UIはまだ実装していません。
+0.6.0までのDualKey本体・左右Chain・ネットワーク機能に、基本的なOSC送信を追加した開発版です。UID単位の詳細設定UIはまだ実装していません。
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
@@ -36,6 +36,19 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 - 接続後は`http://chainoscmini.local/`またはIPアドレスで状態を確認
 - Web画面から保存済みWi-Fi設定を削除可能
 - 実機検証結果に基づきWi-Fi送信出力を2 dBmへ制限
+- Web画面からOSC送信先のホスト名／IPアドレスとUDPポートを設定
+- DualKey本体のKEY1／KEY2から押下時`1`、解放時`0`を送信
+- Chain KeyからUID別のOSC Addressへ押下時`1`、解放時`0`を送信
+
+## OSC Address
+
+| 入力 | OSC Address | 値 |
+|---|---|---|
+| DualKey KEY1 | `/chainoscmini/dualkey/key1` | 押下 `1`、解放 `0` |
+| DualKey KEY2 | `/chainoscmini/dualkey/key2` | 押下 `1`、解放 `0` |
+| Chain Key | `/chainoscmini/chain/key/<UID>` | 押下 `1`、解放 `0` |
+
+Chain Keyの`<UID>`には、ログに表示される24桁の16進数UIDが入ります。
 
 ## Wi-Fi初期設定
 
@@ -74,7 +87,7 @@ mDNSでアクセスできない場合は、シリアルログの`state=CONNECTED
 ## Arduino IDE
 
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
-2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`を導入します。
+2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`、`ArduinoOSC`を導入します。
 3. `ChainOSCmini.ino`を開きます。
 4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
 5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
@@ -106,7 +119,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.6.0の実機確認項目
+## 0.7.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -148,12 +161,16 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - Wi-Fi設定を削除するとAP Modeへ戻る
 - Wi-Fi接続待ちやWebアクセス中もDualKeyと左右Chainが動作する
 - Wi-Fi有効時も空きHeapが継続的に減少しない
+- Web画面でOSC送信先を保存し、再起動後も復元される
+- DualKey KEY1／KEY2の押下・解放でOSCの`1`／`0`を受信できる
+- 左右のChain Keyを操作するとUID別Addressで`1`／`0`を受信できる
+- Wi-Fi設定を削除してもOSC送信先設定が保持される
 
 抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わない設計です。
 
 ## 次の段階
 
-実機確認後、OSC送信先設定と、DualKey本体・Chain Keyからの基本的なOSC送信を追加します。
+実機確認後、DualKey本体とChainデバイスのUID単位設定、複数OSCメッセージ、M5ChainOSC互換プリセットの読み込みへ進みます。
 
 ## License
 
