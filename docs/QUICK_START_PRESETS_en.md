@@ -28,21 +28,34 @@ This guide installs ChainOSCmini and sends OSC to VRChat with a shared Key prese
 
 If the port is missing, hold KEY1 while reconnecting USB to try download mode.
 
-## 2. Configure Wi-Fi
+## 2. Read the connection status LEDs
+
+| LED indication | Status |
+|---|---|
+| Slowly pulsing purple | AP Mode, waiting for Wi-Fi setup |
+| Slowly pulsing blue | Connecting to Wi-Fi |
+| Solid blue | Connected to Wi-Fi |
+| Orange | The corresponding built-in DualKey button is pressed |
+
+When the button is released, its LED returns to the current Wi-Fi status color.
+
+Immediately after installation, a DualKey without saved Wi-Fi settings slowly pulses purple. This is normal and means it is waiting for Wi-Fi setup in the next step.
+
+## 3. Configure Wi-Fi
 
 Connect to `ChainOSCmini-Setup` with password `12345678`. If needed, open `http://192.168.4.1/`, then save a 2.4 GHz Wi-Fi SSID and password.
 
-## 3. Enable VRChat OSC
+## 4. Enable VRChat OSC
 
 ```text
 Action Menu → Options → OSC → Enabled
 ```
 
-## 4. Configure the destination
+## 5. Configure the destination
 
 Use `ipconfig` to find the VRChat computer's IPv4 address. Open `http://chainoscmini.local/`, enter that address under `OSC Target`, and set the port to `9000`. If the `.local` address does not open, start PowerShell, run `Resolve-DnsName chainoscmini.local`, and open the reported ChainOSCmini IP address directly in the browser.
 
-## 5. Import a Key preset
+## 6. Import a Key preset
 
 Download a Key JSON file from [M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key). ChainOSCmini and M5ChainOSC use the same Key preset format.
 

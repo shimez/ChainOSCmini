@@ -159,6 +159,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - [プリセット・クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start-presets/)
 - [Preset Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start-presets/)
 - [Web Installer](https://shimez.github.io/ChainOSCmini/installer/)
+- [変更履歴](CHANGELOG.md)
 
 ## Arduino IDE／PlatformIO共通化
 
