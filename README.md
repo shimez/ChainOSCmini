@@ -5,9 +5,9 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.5.0
+## Version 0.6.0
 
-Chain DualKey本体のキー／RGB LEDに加え、左右2系統のChainポートを同時利用できることを実機確認するための診断版です。Wi-Fi、OSC、Web UI、設定保存はまだ実装していません。
+0.5.0までのDualKey本体・左右Chain機能に、Wi-Fi設定と最小Web UIを追加したネットワーク診断版です。OSCと本格的なデバイス設定UIはまだ実装していません。
 
 - KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
 - 20msのデバウンス
@@ -28,6 +28,34 @@ Chain DualKey本体のキー／RGB LEDに加え、左右2系統のChainポート
 - M5Chain内部のボタン通知キューを消費し、連続操作時のHeap低下を防止
 - ログへポート名を付加し、両側に存在する同じChain IDを区別
 - 一方の切断・タイムアウト時も、反対側の状態を維持
+- Wi-Fi設定をESP32-S3のNVSへ保存
+- M5ChainOSCと同じ起動順序でM5Unified、Wi-Fi、DualKey／Chainの順に初期化
+- 保存済みWi-Fiへ最大15秒間接続し、失敗時は設定用APへ移行
+- 未設定または15秒間接続できない場合は設定用APを開始
+- キャプティブポータルからSSIDとパスワードを設定
+- 接続後は`http://chainoscmini.local/`またはIPアドレスで状態を確認
+- Web画面から保存済みWi-Fi設定を削除可能
+- 実機検証結果に基づきWi-Fi送信出力を2 dBmへ制限
+
+## Wi-Fi初期設定
+
+1. ChainOSCminiを起動します。
+2. スマートフォンまたはPCから`ChainOSCmini-Setup`へ接続します。
+3. Wi-Fiパスワードとして`12345678`を入力します。
+4. キャプティブポータルが自動表示されない場合は、ブラウザーで`http://192.168.4.1/`を開きます。
+5. ChainOSCminiとOSC送信先が利用する2.4 GHz帯Wi-FiのSSIDとパスワードを保存します。
+6. 再起動後、`http://chainoscmini.local/`を開きます。
+
+WindowsでmDNS名を確認する場合はPowerShellで次を実行できます。
+
+```powershell
+Resolve-DnsName chainoscmini.local
+```
+
+mDNSでアクセスできない場合は、シリアルログの`state=CONNECTED ip=...`に表示されたIPアドレスをブラウザーで開いてください。
+
+> [!NOTE]
+> ESP32-S3は2.4 GHz帯Wi-Fiを使用します。5 GHz専用のSSIDには接続できません。Wi-Fi認証情報はESP32-S3のNVSへ保存されます。本診断版は信頼できるローカルネットワークで使用してください。
 
 電源スイッチに関係するGPIO7／GPIO8は設定も駆動も行いません。
 
@@ -46,7 +74,7 @@ Chain DualKey本体のキー／RGB LEDに加え、左右2系統のChainポート
 ## Arduino IDE
 
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
-2. Arduino IDEのライブラリマネージャーから`Adafruit NeoPixel`と`M5Chain`を導入します。
+2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`を導入します。
 3. `ChainOSCmini.ino`を開きます。
 4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
 5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
@@ -78,7 +106,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.5.0の実機確認項目
+## 0.6.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -110,12 +138,22 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - 両側に`id=1`が存在しても、ポート名とUIDで区別できる
 - 一方だけを抜き差ししても、反対側の入力が継続する
 - 同じChain Keyを反対側へ移してもUIDが変わらない
+- Wi-Fi未設定時に`ChainOSCmini-Setup`が表示される
+- APへ接続するとキャプティブポータルが開く
+- 2.4 GHz帯Wi-Fiの設定を保存して再起動できる
+- 再起動後に保存済みWi-Fiへ接続できる
+- シリアルログへIPアドレスが表示される
+- `http://chainoscmini.local/`またはIPアドレスで状態ページを開ける
+- 状態ページにバージョン、IPアドレス、mDNS名が表示される
+- Wi-Fi設定を削除するとAP Modeへ戻る
+- Wi-Fi接続待ちやWebアクセス中もDualKeyと左右Chainが動作する
+- Wi-Fi有効時も空きHeapが継続的に減少しない
 
 抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わない設計です。
 
 ## 次の段階
 
-実機確認後、Wi-Fi、AP Mode、キャプティブポータル、mDNSなど、ネットワーク基盤の段階的な移植へ進みます。
+実機確認後、OSC送信先設定と、DualKey本体・Chain Keyからの基本的なOSC送信を追加します。
 
 ## License
 

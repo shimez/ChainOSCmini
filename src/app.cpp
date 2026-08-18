@@ -1,11 +1,13 @@
 #include "app.h"
 
 #include <Arduino.h>
+#include <M5Unified.h>
 
 #include "config.h"
 #include "chain_port.h"
 #include "diagnostics.h"
 #include "dualkey_hardware.h"
+#include "network_manager.h"
 
 namespace {
 
@@ -15,13 +17,15 @@ bool bootDiagnosticsPrinted = false;
 }  // namespace
 
 void appSetup() {
+  // Match the stable M5ChainOSC startup sequence: initialise M5 board support,
+  // bring up networking, and only then initialise local/Chain hardware.
+  auto m5Config = M5.config();
+  m5Config.serial_baudrate = SERIAL_BAUD;
+  M5.begin(m5Config);
   Serial.begin(SERIAL_BAUD);
+  delay(200);
 
-  const unsigned long waitStartedMs = millis();
-  while (!Serial && millis() - waitStartedMs < SERIAL_WAIT_MS) {
-    delay(10);
-  }
-
+  networkSetup();
   dualKeyHardwareSetup();
   chainPortSetup();
 }
@@ -29,6 +33,8 @@ void appSetup() {
 void appLoop() {
   const unsigned long now = millis();
 
+  M5.update();
+  networkUpdate();
   dualKeyHardwareUpdate();
   chainPortUpdate();
 
