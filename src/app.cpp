@@ -4,10 +4,12 @@
 
 #include "config.h"
 #include "diagnostics.h"
+#include "dualkey_hardware.h"
 
 namespace {
 
 unsigned long lastHeartbeatMs = 0;
+bool bootDiagnosticsPrinted = false;
 
 }  // namespace
 
@@ -19,15 +21,23 @@ void appSetup() {
     delay(10);
   }
 
-  printBootDiagnostics();
-  lastHeartbeatMs = millis();
+  dualKeyHardwareSetup();
 }
 
 void appLoop() {
   const unsigned long now = millis();
-  if (now - lastHeartbeatMs >= HEARTBEAT_INTERVAL_MS) {
+
+  dualKeyHardwareUpdate();
+
+  if (!bootDiagnosticsPrinted && now >= BOOT_DIAGNOSTICS_DELAY_MS) {
+    bootDiagnosticsPrinted = true;
+    printBootDiagnostics();
+    printHeartbeat();
+    lastHeartbeatMs = now;
+  } else if (bootDiagnosticsPrinted &&
+             now - lastHeartbeatMs >= HEARTBEAT_INTERVAL_MS) {
     lastHeartbeatMs = now;
     printHeartbeat();
   }
-  delay(10);
+  delay(1);
 }

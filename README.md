@@ -5,11 +5,19 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.1.0
+## Version 0.2.0
 
-実機の安全な起動確認を目的とした最小構成です。現段階ではWi-Fi、OSC、Web UI、設定保存、キー、LED、Chainポートの制御は実装していません。
+Chain DualKey本体のキーとRGB LEDを実機確認するための診断版です。Wi-Fi、OSC、Web UI、設定保存、左右のChainポート制御はまだ実装していません。
 
-起動するとUSBシリアルへ次の情報を出力します。
+- KEY1（GPIO0）とKEY2（GPIO17）の押下・解放を検出
+- 20msのデバウンス
+- 2個のWS2812Bを通常時は暗い青、押下中はオレンジで表示
+- キーイベントをUSBシリアルへ出力
+- LEDデータはGPIO21、LED電源制御はGPIO40を使用
+
+電源スイッチに関係するGPIO7／GPIO8は設定も駆動も行いません。
+
+起動から5秒後、USBシリアルへ次の情報を出力します。Arduino IDEのシリアルモニターがUSB再接続後に接続する時間を確保するため、起動直後には表示しません。
 
 - ChainOSCminiのバージョン
 - ビルド日時
@@ -19,16 +27,17 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 - Flash、Sketch、Heap、PSRAMの容量
 - 5秒間隔の稼働時間と空きHeap
 
-GPIO割り当てを実機と一次資料で確認するまでは、周辺GPIOを駆動しないSafe Modeで動作します。
+起動診断は0.1.0と同様に起動から5秒後に表示します。キーとLEDは`appSetup()`完了後から動作します。
 
 ## Arduino IDE
 
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
-2. `ChainOSCmini.ino`を開きます。
-3. ボードは暫定的に`ESP32S3 Dev Module`を選択します。
-4. Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
-5. 実機で確認したCOMポートを選び、書き込みます。
-6. シリアルモニターを`115200 bps`で開きます。
+2. Arduino IDEのライブラリマネージャーから`Adafruit NeoPixel`を導入します。
+3. `ChainOSCmini.ino`を開きます。
+4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
+5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
+6. 実機で確認したCOMポートを選び、書き込みます。
+7. シリアルモニターを`115200 bps`で開きます。
 
 Chain DualKey向けの公式Arduinoボード定義が確認できた場合は、正式な設定へ置き換えます。
 
@@ -57,7 +66,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
-## 0.1.0の実機確認項目
+## 0.2.0の実機確認項目
 
 - Arduino IDEでコンパイルできる
 - PlatformIOでビルドできる
@@ -66,10 +75,16 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - Chip ModelとFlash容量が想定どおり表示される
 - 1分以上動作させても再起動しない
 - 空きHeapが継続的に減少しない
+- 起動すると2個のLEDが暗い青で点灯する
+- KEY1を押している間、対応するLEDだけがオレンジになる
+- KEY2を押している間、対応するLEDだけがオレンジになる
+- 押下と解放がそれぞれ1回ずつシリアルへ表示される
+- 同時押しを個別に検出できる
+- キーを繰り返し操作しても再起動しない
 
 ## 次の段階
 
-実機確認後、キーとLEDのGPIOを検証した`0.2.0`へ進みます。その後、Wi-Fi、AP Mode、キャプティブポータル、mDNS、Web UI、OSC送信を段階的に移植します。
+実機確認後、`0.3.0`以降で片側Chainポートの列挙と通信検証へ進みます。左右同時利用は、その後の段階で追加します。
 
 ## License
 
