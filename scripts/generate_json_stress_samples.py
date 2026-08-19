@@ -37,7 +37,7 @@ def document() -> dict:
     return {
         "format": "ChainOSCmini-settings",
         "schemaVersion": 1,
-        "firmwareVersion": "0.9.1",
+        "firmwareVersion": "1.0.0",
         "wifiCredentialsIncluded": False,
         "global": {
             "oscHost": "192.168.1.100",

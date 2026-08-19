@@ -1,10 +1,11 @@
 # ChainOSCmini 実機確認項目
 
-リリース前の回帰テストに使用する確認項目です。現在の対象バージョンは0.9.1です。
+リリース前の回帰テストに使用する確認項目です。現在の対象バージョンは1.0.0です。
 
 ## ビルドと基本動作
 
 - Arduino IDEでコンパイルできる
+- Arduino IDEのコンパイル出力で、アプリ領域が約3.19 MiBとして認識される
 - PlatformIOでビルドできる
 - 両方からChain DualKeyへ書き込める
 - 再起動後にシリアルログが表示される
@@ -24,7 +25,7 @@
 - 同時押しを個別に検出できる
 - キーを繰り返し操作しても再起動しない
 
-## ChainポートとChain Key
+## ChainポートとChain Key／Encoder／Angle／ToF／Joystick
 
 - `G5_G6`側だけで列挙・入力・LEDが動作する
 - `G47_G48`側だけでも列挙・入力・LEDが動作する
@@ -42,6 +43,12 @@
 - 両側に`id=1`が存在しても、ポート名とUIDで区別できる
 - 一方だけを抜き差ししても、反対側の入力が継続する
 - 同じChain Keyを反対側へ移してもUIDが変わらない
+- Chain Encoderが左右どちらのポートでも種類とUID付きで列挙される
+- Encoderを抜き差し、左右移動、接続順変更しても同じUIDとして認識される
+- Chain Angleが左右どちらのポートでも種類とUID付きで列挙される
+- Angleを抜き差し、左右移動、接続順変更しても同じUIDとして認識される
+- Chain Joystickが左右どちらのポートでも種類とUID付きで列挙される
+- Joystickを抜き差し、左右移動、接続順変更しても同じUIDとして認識される
 
 抜き差しの瞬間には`TIMEOUT`が一度表示されることがあります。次の走査で自動復帰し、正常な列挙結果を失わないことを確認します。
 
@@ -78,6 +85,43 @@
 - 画面をスクロールしても「すべての設定を保存」ボタンが追従する
 - OSC送信先と複数デバイス設定を一度の操作で保存できる
 - 再接続すると同じUIDの設定が「接続中のデバイス」へ戻る
+- DualKey本体キーの`…`から識別すると、対応する側のLEDだけが10秒間オレンジになる
+- 接続中のChain Key／Encoder／Angle／ToF／Joystickの`…`から識別すると、対象UIDのLEDだけが10秒間オレンジになる
+- 識別中にキー操作してもオレンジ表示が維持され、10秒後に通常の状態表示へ戻る
+
+### Chain Joystick
+
+- X/Y軸がDeadband以上変化したときだけ、それぞれのOSC Addressへ送信する
+- Invert X／Invert Yが各軸に正しく適用される
+- Out Min／Out MaxとFloat／Int／Stringが正しく適用される
+- クリックのPress / Release合計8件、0件、並べ替え、SequenceがKeyと同様に動作する
+- GPIO5/GPIO6側では通常のX/Y軸として動作する
+- GPIO47/GPIO48側では、設定操作なしでX軸とY軸の正負が両方とも自動反転する
+- GPIO47/GPIO48側の自動補正後に、Web UIのX軸反転／Y軸反転が追加で適用される
+- 同じJoystickを左右へ移動してもUID設定が復元され、それぞれのポートに応じた向きで動作する
+- 全体JSONとM5ChainOSC互換Joystickプリセットをエクスポート／インポートできる
+
+### Chain Encoder
+
+- 初回の回転値取得ではOSCを送信せず、その後の回転変化で送信する
+- Absoluteで入力範囲が循環し、Out Min／Out Maxへ変換される
+- Incrementで回転差分×Inc Scaleを送信し、逆回転では負の値になる
+- Out TypeのFloat／Int／Stringが正しく送信される
+- クリックのPress / Release合計8件、0件、追加、削除、並べ替えがKeyと同様に動作する
+- クリックのSequenceでStart／End／Step／Typeと周回動作が正しい
+- クリック時はPress / Releaseで赤、Sequenceで緑、離した後は青へ戻る
+- 回転設定とクリック設定が同時に動作する
+- 設定を保存して再起動、抜き差し、左右移動してもUID単位で復元される
+- 取り外したEncoderが保存済みデバイスへ移り、削除後の再接続で初期値になる
+
+### Chain Angle
+
+- 初回の角度値取得ではOSCを送信せず、その後の変化で送信する
+- 12-bitでは0～4095、8-bitでは0～255をOut Min／Out Maxへ変換する
+- Deadband未満の変化では送信せず、以上の変化では送信する
+- Out TypeのFloat／Int／Stringが正しく送信される
+- 設定を保存して再起動、抜き差し、左右移動してもUID単位で復元される
+- 取り外したAngleが保存済みデバイスへ移り、削除後の再接続で初期値になる
 
 ## JSONバックアップとプリセット
 
@@ -90,6 +134,17 @@
 - Chain KeyプリセットにUIDとデバイス名が含まれない
 - M5ChainOSCでエクスポートしたKeyプリセットをChainOSCminiへインポートできる
 - ChainOSCminiでエクスポートしたKeyプリセットをM5ChainOSCへインポートできる
+- EncoderプリセットにUIDとデバイス名が含まれない
+- M5ChainOSCとChainOSCminiの間でEncoderプリセットを相互にインポートできる
+- 全体設定JSONでEncoder設定をエクスポート／復元できる
+- AngleプリセットにUIDとデバイス名が含まれない
+- M5ChainOSCとChainOSCminiの間でAngleプリセットを相互にインポートできる
+- 全体設定JSONでAngle設定をエクスポート／復元できる
+- 30 mm以上かつMaximum Distance未満でToF値を送信し、範囲外では送信を停止する
+- ToFのDeadband、近距離／遠距離の出力方向、Out Min／Max、Float／Intが正しい
+- ToF設定が再起動、抜き差し、左右移動後もUID単位で復元される
+- M5ChainOSCとChainOSCminiの間でToFプリセットを相互にインポートできる
+- 全体設定JSONでToF設定をエクスポート／復元できる
 - 全体設定JSONをプリセットとして選択した場合はエラーになり、設定が変化しない
 - 破損JSON、異なるformat、schemaVersion、デバイス種類、無効なAddress、9件以上のメッセージを拒否する
 - 32 KiB境界テストJSONを正常にインポートできる

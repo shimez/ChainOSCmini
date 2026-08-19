@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 enum class NetworkLedState {
   CONNECTING,
   CONNECTED,
@@ -9,3 +11,4 @@ enum class NetworkLedState {
 void dualKeyHardwareSetup();
 void dualKeyHardwareUpdate();
 void dualKeySetNetworkLedState(NetworkLedState state);
+bool dualKeyIdentifyDevice(const String& identity);

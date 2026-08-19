@@ -5,27 +5,33 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 0.9.1
+## Version 1.0.0
 
-0.9.0の機能に、LEDによるWi-Fi状態表示を追加した開発版です。
+ChainOSCminiとして予定していた基本機能を備えた最初の安定版です。M5ChainOSCとの設定・プリセット互換性を重視しています。
 
-- AP Modeでは2個のLEDを紫でゆっくり点滅
-- Wi-Fi接続中は2個のLEDを青でゆっくり点滅
-- Wi-Fi接続後は2個のLEDを青で常時点灯
-- キー押下中は対象LEDをオレンジで表示し、解放後は現在のWi-Fi状態色へ復帰
+- EncoderのAbsolute／Increment回転値をOSC送信
+- EncoderクリックのPress / ReleaseとSequenceに対応
+- Encoder設定をUID単位で保存・復元
+- M5ChainOSC互換のEncoderプリセットをエクスポート／インポート
+- Angleの8-bit／12-bit入力、Deadband、出力範囲・型設定に対応
+- Angle設定をUID単位で保存し、M5ChainOSC互換プリセットを共有
+- ToFの有効距離、Deadband、出力方向・範囲・型設定に対応
+- ToF設定をUID単位で保存し、M5ChainOSC互換プリセットを共有
+- JoystickのX/Y軸、Deadband、反転、出力範囲・型、クリック設定に対応
+- GPIO47/GPIO48側に接続したJoystickはX軸・Y軸の正負を自動反転
 
 詳しい変更内容は[変更履歴](CHANGELOG.md)を参照してください。
 
 ## 主な機能
 
-- DualKey本体キーとChain KeyからOSCメッセージを直接送信
+- DualKey本体キー、Chain Key、Chain Encoder、Chain Angle、Chain ToF、Chain JoystickからOSCメッセージを直接送信
 - 左右両方のChainポートへ接続したデバイスを個別に認識
 - Press / ReleaseとSequenceに対応
 - 1キーあたり最大8件のOSCメッセージとFloat／Int／String型を設定可能
-- Chain Keyの設定をUID単位で保存し、抜き差しや左右移動後も復元
+- Chain Key／Encoder／Angle／ToF／Joystickの設定をUID単位で保存し、抜き差しや左右移動後も復元
 - ブラウザーから英語／日本語で設定可能
 - 全体設定とデバイスプリセットのJSONエクスポート／インポートに対応
-- M5ChainOSCとKeyプリセットを共有可能
+- M5ChainOSCとKey／Encoder／Angle／ToF／Joystickプリセットを共有可能
 - AP ModeとキャプティブポータルによるWi-Fi初期設定
 - Arduino IDE、PlatformIO、Web Installerに対応
 
@@ -38,8 +44,10 @@ Chain DualKey上で動作するOSCコントローラーを目指す、開発中�
 | DualKey KEY1 | `/chainoscmini/dualkey/key1` | 押した時 `1`、離した時 `0` |
 | DualKey KEY2 | `/chainoscmini/dualkey/key2` | 押した時 `1`、離した時 `0` |
 | Chain Key | `/chainoscmini/chain/key/<UID>` | 押した時 `1`、離した時 `0` |
-
-Chain Keyの`<UID>`には、ログに表示される24桁の16進数UIDが入ります。
+| Chain Encoder | `/avatar/parameters/Encoder` | 回転値 |
+| Chain Angle | `/avatar/parameters/Angle` | 角度値 |
+| Chain ToF | `/avatar/parameters/ToF` | 距離の変換値 |
+| Chain Joystick X/Y | `/avatar/parameters/JoyX`／`JoyY` | スティック位置の変換値 |
 
 例えば次のように設定できます。
 
@@ -47,8 +55,11 @@ Chain Keyの`<UID>`には、ログに表示される24桁の16進数UIDが入り
 |---|---|---|
 | VRChatのマイクON／OFF | `/input/Voice` | 押した時 `1`／離した時 `0` |
 | VRChatのAFKモードON／OFF | `/input/AFKToggle` | 押した時 `1`／離した時 `0` |
+| EncoderでVRChatカメラをズーム | `/usercamera/Zoom` | Absolute、出力範囲 `20`～`300` |
+| AngleでVRChatカメラをズーム | `/usercamera/Zoom` | 12-bit、出力範囲 `20`～`300` |
+| JoystickでVRChat内を移動 | `/input/Vertical`／`/input/Horizontal` | 出力範囲 `-1`～`1` |
 
-そのほかの設定例は[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets)を参照してください。
+詳細やその他の設定例は[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets)を参照してください。
 
 ## Wi-Fi初期設定
 
@@ -66,6 +77,9 @@ Resolve-DnsName chainoscmini.local
 ```
 
 mDNS名で設定画面を開けない場合は、上記コマンドの結果に表示されたIPアドレスをブラウザーで開いてください。
+
+> [!IMPORTANT]
+> Web UIには認証機能がありません。ChainOSCminiは、家庭内LANなど信頼できるローカルネットワークで使用してください。イベント会場、ホテル、公共Wi-Fiなど、不特定の利用者が接続するネットワークでの使用は推奨しません。
 
 > [!NOTE]
 > ESP32-S3は2.4 GHz帯Wi-Fiを使用します。5 GHz専用のSSIDには接続できません。Wi-Fi認証情報はESP32-S3のNVSへ保存されます。ChainOSCminiは信頼できるローカルネットワークで使用してください。
@@ -89,10 +103,11 @@ mDNS名で設定画面を開けない場合は、上記コマンドの結果に�
 1. Espressif Systemsの`esp32`ボードパッケージを導入します。
 2. Arduino IDEのライブラリマネージャーから`M5Unified`、`Adafruit NeoPixel`、`M5Chain`、`ArduinoOSC`、`ArduinoJson`を導入します。
 3. `ChainOSCmini.ino`を開きます。
-4. ボードは`M5ChainDualKey`を選択します。表示されない場合は暫定的に`ESP32S3 Dev Module`を選択します。
-5. `ESP32S3 Dev Module`の場合、Flash Sizeは`8MB`、USB CDC On Bootは`Enabled`を選択します。
-6. 実機で確認したCOMポートを選び、書き込みます。
-7. シリアルモニターを`115200 bps`で開きます。
+4. ボードは`ESP32S3 Dev Module`を選択します。現在の`M5ChainDualKey`ボード定義ではアプリ領域が約1.25 MiBとなり、ChainOSCminiを格納できない場合があります。
+5. `Flash Size`は`8MB`、`USB CDC On Boot`は`Enabled`を選択します。
+6. `Partition Scheme`は、8 MB Flash向けで3 MiB以上のアプリ領域を持つ構成を選択します。表示される場合は`8M with spiffs (3MB APP/1.5MB SPIFFS)`を推奨します。名称が異なる場合は`Huge APP (3MB No OTA/1MB SPIFFS)`も使用できます。
+7. 実機で確認したCOMポートを選び、書き込みます。
+8. シリアルモニターを`115200 bps`で開きます。
 
 ## PlatformIO
 
@@ -114,7 +129,7 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 ## GitHub Actions／Web Installer
 
 - `main`へプッシュすると、Actions画面からPlatformIOビルドを手動確認できます。
-- `v0.9.1`タグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
+- `v1.0.0`のようなバージョンタグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
 - ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを自動配信します。
 - 公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
 - Web Installerでは、Release Assetを直接参照せずPagesと同じオリジンからファームウェアを配信します。
@@ -134,12 +149,13 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 実装本体は`src/app.cpp`の`appSetup()`／`appLoop()`です。
 
 - Arduino IDEはルートの`ChainOSCmini.ino`をエントリーポイントとして使用します。
+- Arduino IDEでは8 MB Flash向けの大容量Partition Schemeを選択します。PlatformIOは`default_8MB.csv`を使用します。
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
 
 ## 今後の予定
 
-- Encoder、Joystick、Angle、ToFなど、その他のChainデバイスへの対応
+- その他のChainデバイスへの対応
 - M5ChainOSCとの機能・UI・プリセット互換性の継続的な改善
 
 ## License

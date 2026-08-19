@@ -71,9 +71,12 @@ ChainOSCminiと同じネットワークに接続したWi-FiまたはEthernetア�
 2. 開けない場合はWindows PowerShellを起動し、`Resolve-DnsName chainoscmini.local`を実行します。結果に表示されたIPアドレスをブラウザーへ入力して設定画面を開きます。
 3. `OSC Target`へPCのIPv4アドレスとポート`9000`を入力します。
 
+> [!IMPORTANT]
+> Web UIには認証機能がありません。ChainOSCminiは、家庭内LANなど信頼できるローカルネットワークで使用してください。イベント会場、ホテル、公共Wi-Fiなど、不特定の利用者が接続するネットワークでの使用は推奨しません。
+
 ## 7. Keyプリセットを入手する
 
-ChainOSCmini 0.9.1は、M5ChainOSCと共通のKeyプリセット形式を使用します。[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key)からKey用JSONをダウンロードできます。
+ChainOSCmini 1.0.0は、M5ChainOSCと共通のデバイスプリセット形式を使用します。[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets)から対応するJSONをダウンロードできます。
 
 例：
 

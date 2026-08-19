@@ -6,6 +6,23 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Added
+
+- Chain Encoderの回転とクリック入力に対応
+- EncoderのAbsolute／Increment、入出力範囲、型設定に対応
+- EncoderクリックのPress / Release、最大8メッセージ、Sequenceに対応
+- Encoder設定のUID単位保存、全体JSON、M5ChainOSC互換プリセットに対応
+- Chain Angleの8-bit／12-bit入力とOSC送信に対応
+- AngleのDeadband、出力範囲、Float／Int／String型設定に対応
+- Angle設定のUID単位保存、全体JSON、M5ChainOSC互換プリセットに対応
+- DualKey本体キーと接続中のChainデバイスを10秒間オレンジ点灯して識別する機能を追加
+- Chain ToFの距離入力、有効最大距離、範囲外でのOSC送信停止に対応
+- ToFのDeadband、出力方向・範囲・型、UID保存、全体JSON、M5ChainOSC互換プリセットに対応
+- Chain JoystickのX/Y軸入力、クリック、Deadband、反転、出力範囲・型に対応
+- GPIO47/GPIO48側ではJoystickのX軸・Y軸の正負を常に自動反転し、左右の物理的な向きを補正
+
 ## [0.9.1]
 
 ### Added
@@ -113,7 +130,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.0
 [0.9.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.9.1
 [0.9.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.9.0
 [0.8.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.8.0

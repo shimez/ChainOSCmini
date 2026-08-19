@@ -5,19 +5,25 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
-#include <WebServer.h>
 #include <WiFi.h>
 #include <ctype.h>
 #include <errno.h>
 #include <esp_wifi.h>
+#include <esp_heap_caps.h>
 
 #include "dualkey_hardware.h"
 #include <limits.h>
 #include <math.h>
 
 #include "config.h"
+#include "angle_settings.h"
+#include "chain_port.h"
+#include "encoder_settings.h"
 #include "key_settings.h"
+#include "joystick_settings.h"
 #include "osc_manager.h"
+#include "responsive_web_server.h"
+#include "tof_settings.h"
 
 namespace {
 
@@ -27,7 +33,7 @@ enum class NetworkState : uint8_t {
   AP_MODE,
 };
 
-WebServer server(80);
+ResponsiveWebServer server(80);
 DNSServer dnsServer;
 NetworkState networkState = NetworkState::CONNECTING;
 unsigned long restartAtMs = 0;
@@ -47,8 +53,31 @@ constexpr char DEVICE_PRESET_FORMAT_NAME[] = "ChainOSC-device-preset";
 constexpr char LEGACY_DEVICE_PRESET_FORMAT_NAME[] = "M5ChainOSC-device-preset";
 constexpr int DEVICE_PRESET_SCHEMA_VERSION = 1;
 constexpr int CHAIN_KEY_DEVICE_TYPE = 3;
+constexpr int CHAIN_ENCODER_DEVICE_TYPE = 1;
+constexpr int CHAIN_ANGLE_DEVICE_TYPE = 2;
+constexpr int CHAIN_TOF_DEVICE_TYPE = 5;
+constexpr int CHAIN_JOYSTICK_DEVICE_TYPE = 4;
 constexpr size_t MAX_IMPORT_BYTES = 32768;
 constexpr size_t MAX_PRESET_BYTES = 16384;
+
+#if CHAINOSCMINI_WEB_PERF_DEBUG
+uint32_t webRequestSequence = 0;
+void logWebPerf(uint32_t requestId, uint32_t startedMs, const char* phase,
+                size_t bytes, uint32_t operationMs, size_t cardCount) {
+  Serial.printf(
+      "[ChainOSCmini][WEBPERF] req=%lu phase=%s elapsed=%lu op=%lu "
+      "bytes=%u cards=%u free=%u min=%u largest=%u connected=%u\n",
+      static_cast<unsigned long>(requestId), phase,
+      static_cast<unsigned long>(millis() - startedMs),
+      static_cast<unsigned long>(operationMs), static_cast<unsigned>(bytes),
+      static_cast<unsigned>(cardCount),
+      static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+      static_cast<unsigned>(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)),
+      static_cast<unsigned>(
+          heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)),
+      server.client().connected() ? 1U : 0U);
+}
+#endif
 
 bool isJapaneseUi() { return uiLanguage == UiLanguage::JAPANESE; }
 const char* tr(const char* english, const char* japanese) {
@@ -98,10 +127,11 @@ button{width:100%;padding:12px;background:#28a745;color:#fff;border:none;border-
 .event-tabs{display:flex;gap:4px;padding:4px;background:#edf0f4;border-radius:9px}.event-tab{margin:0;background:transparent;color:#697586}.event-tab.active{background:#fff;color:#18212f;box-shadow:0 1px 4px #bbb}
 .event-panel{margin-top:12px}.osc-list{display:grid;gap:10px}.osc-row{display:grid;grid-template-columns:62px minmax(180px,1fr) 115px minmax(100px,.55fr) 68px;gap:9px;align-items:start;padding:12px;border:1px solid #dce2ea;border-radius:10px;background:#fbfcfe}.osc-row label{margin-top:0}.order{display:flex;gap:3px;align-self:center}.mv{width:auto;margin:0;padding:7px;background:#fff;color:#526075;border:1px solid #dce2ea}.remove-msg{width:auto;margin-top:22px;padding:9px;background:#fff3f4;color:#c73c4a;border:1px solid #efc6cb}.add-msg{background:#f7faff;color:#3267e3;border:1px dashed #9db6ef}.add-msg:disabled{background:#eee;color:#888}.empty{display:none;padding:18px;text-align:center;color:#697586;border:1px dashed #dce2ea;border-radius:9px}.osc-list:empty+.empty{display:block}
 .sequence-card{margin-top:12px;padding:15px;border:1px solid #dce2ea;border-radius:10px;background:#fbfcfe}.sequence-card h3{margin-top:0}.seq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.seq-address{grid-column:1/-1}
+.encoder-rotation{margin-top:12px;padding:14px;border-left:5px solid #fd7e14;background:#f8f9fa}.encoder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.encoder-address{grid-column:1/-1}.encoder-mode-hidden{visibility:hidden;pointer-events:none}.angle-section,.tof-section{margin-top:12px;padding:14px;border-left:5px solid #6610f2;background:#f8f9fa}.joystick-section{margin-top:12px;padding:14px;border-left:5px solid #e83e8c;background:#f8f9fa}.angle-grid,.tof-grid,.joystick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.angle-address,.tof-address,.joystick-address,.joystick-invert{grid-column:1/-1}.angle-section h3,.tof-section h3,.joystick-section h3{margin:0 0 8px}.joystick-invert{display:flex;gap:18px;flex-wrap:wrap}.joystick-invert label{display:flex;align-items:center;gap:6px;margin:0}.joystick-invert input{width:auto;margin:0}.click-section{margin-top:14px;padding:14px;border-left:5px solid #28a745;background:#f8f9fa}.click-section h3,.encoder-rotation h3{margin:0 0 8px}
 .save-bar{position:sticky;z-index:15;bottom:8px;display:flex;align-items:center;gap:12px;padding:10px 12px;margin:16px 0 28px;background:rgba(255,255,255,.96);border:1px solid #dce2ea;border-radius:10px;box-shadow:0 5px 18px rgba(0,0,0,.14)}.save-bar button{flex:1;margin:0;background:#28a745}.dirty-status{color:#b45f06;font-weight:bold;white-space:nowrap}.saved-device-card h2{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.btn-warning{background:#ff9800}.toast{position:fixed;z-index:30;left:50%;bottom:78px;transform:translateX(-50%);padding:11px 18px;border-radius:8px;background:#17324d;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.25)}.wifi-actions{margin-top:28px}.wifi-actions form{margin:0}
 .language-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.language-row h2{margin:0}.language-row form{margin:0;min-width:150px}.language-row select{margin:0}
 .device-menu-wrap{position:relative}.device-menu-button{width:32px;height:30px;margin:0;padding:0;background:#f1f4f8;color:#42516a;border:1px solid #dce2ea;border-radius:7px;font-size:18px}.device-menu{position:absolute;z-index:20;right:0;top:36px;width:235px;padding:7px;border:1px solid #dce2ea;border-radius:9px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18)}.device-menu[hidden]{display:none}.device-menu a,.device-menu button{display:block;width:100%;margin:0;padding:10px;border:0;border-radius:6px;background:#fff;color:#253047;text-align:left;text-decoration:none;font-size:14px}.device-menu a:hover,.device-menu button:hover{background:#f1f4f8}.tool-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tool-row a,.tool-row button{display:block;margin:0;padding:12px;border-radius:6px;background:#3267e3;color:#fff;text-align:center;text-decoration:none;font-size:16px}.import-status{min-height:20px;margin:9px 0 0;color:#526075;font-size:.9em}
-@media(max-width:720px){.system-grid,.key-grid,.seq-grid{grid-template-columns:1fr}.seq-address{grid-column:1}.osc-row{grid-template-columns:52px 1fr}.osc-row .field,.remove-msg{grid-column:2}}
+@media(max-width:720px){.system-grid,.key-grid,.seq-grid,.encoder-grid,.angle-grid,.tof-grid,.joystick-grid{grid-template-columns:1fr}.seq-address,.encoder-address,.angle-address,.tof-address,.joystick-address,.joystick-invert{grid-column:1}.encoder-mode-hidden{display:none}.osc-row{grid-template-columns:52px 1fr}.osc-row .field,.remove-msg{grid-column:2}}
 )CSS";
 
 const char PAGE_SCRIPT[] PROGMEM = R"JS(
@@ -118,9 +148,11 @@ function chooseSettingsFile(){document.getElementById('settings-import-file').cl
 function showImportError(status,reason){const message=tx('Import failed. The selected JSON file is not valid for this import.','インポートに失敗しました。選択したJSONファイルはこのインポートには使用できません。')+(reason?'\n\n'+reason:'');status.textContent=message.replace(/\n+/g,' ');alert(message)}
 async function importSettings(input){const status=document.getElementById('settings-import-status');if(!input.files.length)return;const file=input.files[0];if(file.size>32768){showImportError(status,tx('The JSON file is too large.','JSONファイルが大きすぎます。'));input.value='';return}if(!confirm(tx('Import all settings in this file? Matching device settings will be overwritten.','このファイルの全設定をインポートしますか？同じデバイスの設定は上書きされます。'))){input.value='';return}status.textContent=tx('Importing...','インポート中...');try{const response=await fetch('/import_settings',{method:'POST',headers:{'Content-Type':'application/json'},body:await file.text()});const message=await response.text();if(!response.ok)throw new Error(message);status.textContent=message;setTimeout(()=>location.reload(),800)}catch(error){showImportError(status,error.message)}finally{input.value=''}}
 function chooseDevicePreset(index){document.getElementById('preset-file-'+index).click()}
+async function identifyDevice(index){document.querySelectorAll('.device-menu').forEach(menu=>menu.hidden=true);try{const response=await fetch('/identify_device?index='+index,{method:'POST'});const message=await response.text();if(!response.ok)throw new Error(message)}catch(error){alert(error.message||tx('The device LED could not be changed.','デバイスのLEDを変更できませんでした。'))}}
 async function importDevicePreset(index,input){const status=document.getElementById('preset-status-'+index);if(!input.files.length)return;const file=input.files[0];if(file.size>16384){showImportError(status,tx('The preset file is too large.','プリセットファイルが大きすぎます。'));input.value='';return}if(!confirm(tx('Apply this preset to the selected device? Its settings will be overwritten.','選択したデバイスへこのプリセットを適用しますか？デバイス設定は上書きされます。'))){input.value='';return}status.textContent=tx('Importing preset...','プリセットをインポート中...');try{const response=await fetch('/import_device_preset?index='+index,{method:'POST',headers:{'Content-Type':'application/json'},body:await file.text()});const message=await response.text();if(!response.ok)throw new Error(message);status.textContent=message;setTimeout(()=>location.reload(),700)}catch(error){showImportError(status,error.message)}finally{input.value=''}}
 function toggleDevice(index,key){const body=document.getElementById('device-body-'+index);const button=document.getElementById('collapse-'+index);const collapsed=!body.hidden;body.hidden=collapsed;button.classList.toggle('collapsed',collapsed);button.setAttribute('aria-expanded',collapsed?'false':'true');sessionStorage.setItem('chainoscmini-collapse-'+key,collapsed?'1':'0')}
 function toggleKeyMode(prId,sqId,select){document.getElementById(prId).style.display=select.value==='1'?'none':'block';document.getElementById(sqId).style.display=select.value==='1'?'block':'none'}
+function updateEncoderMode(select){const card=select.closest('.encoder-rotation'),show=select.value==='0';if(card)card.querySelectorAll('.encoder-absolute-setting').forEach(item=>item.classList.toggle('encoder-mode-hidden',!show))}
 function showEvent(group,event,button){document.querySelectorAll('.event-panel[data-group="'+group+'"]').forEach(panel=>panel.style.display=panel.dataset.event===event?'block':'none');button.parentNode.querySelectorAll('.event-tab').forEach(tab=>tab.classList.remove('active'));button.classList.add('active')}
 function rows(group){return document.querySelectorAll('.osc-row[data-group="'+group+'"]')}
 function renumber(group){const all=rows(group);['press','release'].forEach(event=>{document.querySelectorAll('.osc-row[data-group="'+group+'"][data-event="'+event+'"]').forEach((row,index)=>{const prefix=event==='press'?'p':'r';row.querySelector('.msg-address').name=prefix+'_address_'+group+'_'+index;row.querySelector('.type').name=prefix+'_type_'+group+'_'+index;row.querySelector('.msg-value').name=prefix+'_value_'+group+'_'+index})});document.getElementById('count-'+group).textContent=all.length;document.getElementById('p-count-'+group).value=document.querySelectorAll('.osc-row[data-group="'+group+'"][data-event="press"]').length;document.getElementById('r-count-'+group).value=document.querySelectorAll('.osc-row[data-group="'+group+'"][data-event="release"]').length;document.querySelectorAll('.add-msg[data-group="'+group+'"]').forEach(button=>button.disabled=all.length>=MAX_MSG)}
@@ -232,6 +264,91 @@ String keySettingJson(const KeySetting& setting, bool includeIdentity) {
             ",\"press\":" + messageArrayJson(setting.pressMessages, setting.pressMessageCount) +
             ",\"release\":" + messageArrayJson(setting.releaseMessages, setting.releaseMessageCount) +
             ",\"sequence\":" + sequenceJson(setting.sequence) + "}}";
+  return output;
+}
+
+String encoderSettingJson(const EncoderSetting& setting, bool includeIdentity) {
+  String output = "{";
+  if (includeIdentity) {
+    output += String("\"identity\":") + jsonString(setting.identity) +
+              ",\"deviceType\":" + String(CHAIN_ENCODER_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Encoder\"" +
+              ",\"displayName\":" + jsonString(setting.displayName) +
+              ",\"builtIn\":false";
+  } else {
+    output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
+              ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) +
+              ",\"deviceType\":" + String(CHAIN_ENCODER_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Encoder\"";
+  }
+  output += String(",\"encoder\":{\"rotationAddress\":") +
+            jsonString(setting.rotationAddress) +
+            ",\"sendIncrement\":" +
+            String(setting.sendIncrement ? "true" : "false") +
+            ",\"absoluteInputMin\":" + String(setting.absoluteInputMin, 6) +
+            ",\"absoluteInputMax\":" + String(setting.absoluteInputMax, 6) +
+            ",\"incrementScale\":" + String(setting.incrementScale, 6) +
+            ",\"range\":{\"outMin\":" + String(setting.outputMin, 6) +
+            ",\"outMax\":" + String(setting.outputMax, 6) +
+            ",\"type\":" + String(static_cast<int>(setting.outputType)) + "}" +
+            ",\"clickMode\":" + String(static_cast<int>(setting.clickMode)) +
+            ",\"press\":" +
+            messageArrayJson(setting.pressMessages, setting.pressMessageCount) +
+            ",\"release\":" +
+            messageArrayJson(setting.releaseMessages, setting.releaseMessageCount) +
+            ",\"sequence\":" + sequenceJson(setting.clickSequence) + "}}";
+  return output;
+}
+
+String angleSettingJson(const AngleSetting& setting, bool includeIdentity) {
+  String output = "{";
+  if (includeIdentity) {
+    output += String("\"identity\":") + jsonString(setting.identity) +
+              ",\"deviceType\":" + String(CHAIN_ANGLE_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Angle\"" +
+              ",\"displayName\":" + jsonString(setting.displayName) +
+              ",\"builtIn\":false";
+  } else {
+    output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
+              ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) +
+              ",\"deviceType\":" + String(CHAIN_ANGLE_DEVICE_TYPE) +
+              ",\"deviceTypeName\":\"Angle\"";
+  }
+  output += String(",\"angle\":{\"address\":") + jsonString(setting.address) +
+            ",\"use12bit\":" + String(setting.use12Bit ? "true" : "false") +
+            ",\"deadband\":" + String(setting.deadband) +
+            ",\"range\":{\"outMin\":" + String(setting.outputMin, 6) +
+            ",\"outMax\":" + String(setting.outputMax, 6) +
+            ",\"type\":" + String(static_cast<int>(setting.outputType)) + "}}}";
+  return output;
+}
+
+String tofSettingJson(const TofSetting& setting, bool includeIdentity) {
+  String output = "{";
+  if (includeIdentity) output += String("\"identity\":") + jsonString(setting.identity) +
+      ",\"deviceType\":" + String(CHAIN_TOF_DEVICE_TYPE) + ",\"deviceTypeName\":\"ToF\",\"displayName\":" + jsonString(setting.displayName) + ",\"builtIn\":false";
+  else output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
+      ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) + ",\"deviceType\":" + String(CHAIN_TOF_DEVICE_TYPE) + ",\"deviceTypeName\":\"ToF\"";
+  output += String(",\"tof\":{\"address\":") + jsonString(setting.address) +
+      ",\"deadband\":" + String(setting.deadband) + ",\"maxDistanceMm\":" + String(setting.maxDistanceMm) +
+      ",\"nearValueHigh\":" + String(setting.nearValueHigh ? "true" : "false") +
+      ",\"range\":{\"outMin\":" + String(setting.outputMin, 6) + ",\"outMax\":" + String(setting.outputMax, 6) +
+      ",\"type\":" + String(static_cast<int>(setting.outputType)) + "}}}";
+  return output;
+}
+
+String joystickSettingJson(const JoystickSetting& setting, bool includeIdentity) {
+  String output = "{";
+  if (includeIdentity) output += String("\"identity\":") + jsonString(setting.identity) +
+      ",\"deviceType\":" + String(CHAIN_JOYSTICK_DEVICE_TYPE) + ",\"deviceTypeName\":\"Joystick\",\"displayName\":" + jsonString(setting.displayName) + ",\"builtIn\":false";
+  else output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
+      ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) + ",\"deviceType\":" + String(CHAIN_JOYSTICK_DEVICE_TYPE) + ",\"deviceTypeName\":\"Joystick\"";
+  output += String(",\"joystick\":{\"xAddress\":") + jsonString(setting.xAddress) +
+      ",\"yAddress\":" + jsonString(setting.yAddress) + ",\"deadband\":" + String(setting.deadband) +
+      ",\"invertX\":" + String(setting.invertX ? "true" : "false") + ",\"invertY\":" + String(setting.invertY ? "true" : "false") +
+      ",\"range\":{\"outMin\":" + String(setting.outputMin,6) + ",\"outMax\":" + String(setting.outputMax,6) + ",\"type\":" + String((int)setting.outputType) + "}" +
+      ",\"clickMode\":" + String((int)setting.clickMode) + ",\"press\":" + messageArrayJson(setting.pressMessages,setting.pressMessageCount) +
+      ",\"release\":" + messageArrayJson(setting.releaseMessages,setting.releaseMessageCount) + ",\"sequence\":" + sequenceJson(setting.clickSequence) + "}}";
   return output;
 }
 
@@ -362,6 +479,168 @@ bool keySettingFromJson(JsonObjectConst object, KeySetting& candidate,
   return jsonSequence(key["sequence"].as<JsonObjectConst>(), candidate.sequence, error);
 }
 
+bool encoderSettingFromJson(JsonObjectConst object, EncoderSetting& candidate,
+                            bool includeIdentity, String& error) {
+  if (object.isNull() || !object["deviceType"].is<int>() ||
+      object["deviceType"].as<int>() != CHAIN_ENCODER_DEVICE_TYPE) {
+    error = tr("Device type is not Encoder.", "デバイス種類がEncoderではありません。");
+    return false;
+  }
+  if (includeIdentity) {
+    if (!object["identity"].is<const char*>() ||
+        !object["displayName"].is<const char*>()) {
+      error = tr("Device identity or name is missing.", "デバイス識別子または名前がありません。");
+      return false;
+    }
+    candidate.identity = object["identity"].as<const char*>();
+    candidate.displayName = object["displayName"].as<const char*>();
+    candidate.identity.trim();
+    candidate.displayName.trim();
+    if (!candidate.identity.startsWith("chain:") ||
+        candidate.identity.length() <= 6 || candidate.displayName.isEmpty() ||
+        candidate.displayName.length() > 64) {
+      error = tr("Device identity or name is invalid.", "デバイス識別子または名前が正しくありません。");
+      return false;
+    }
+  }
+  JsonObjectConst encoder = object["encoder"].as<JsonObjectConst>();
+  JsonObjectConst range = encoder["range"].as<JsonObjectConst>();
+  if (encoder.isNull() || range.isNull() ||
+      !encoder["rotationAddress"].is<const char*>() ||
+      !encoder.containsKey("absoluteInputMin") ||
+      !encoder.containsKey("absoluteInputMax") ||
+      !encoder.containsKey("incrementScale") ||
+      !range.containsKey("outMin") || !range.containsKey("outMax") ||
+      !range["type"].is<int>() || !encoder["press"].is<JsonArrayConst>() ||
+      !encoder["release"].is<JsonArrayConst>()) {
+    error = tr("Encoder settings are missing.", "Encoder設定がありません。");
+    return false;
+  }
+  candidate.rotationAddress = encoder["rotationAddress"].as<const char*>();
+  candidate.rotationAddress.trim();
+  candidate.sendIncrement = encoder["sendIncrement"] | false;
+  candidate.absoluteInputMin = encoder["absoluteInputMin"].as<float>();
+  candidate.absoluteInputMax = encoder["absoluteInputMax"].as<float>();
+  candidate.incrementScale = encoder["incrementScale"].as<float>();
+  candidate.outputMin = range["outMin"].as<float>();
+  candidate.outputMax = range["outMax"].as<float>();
+  const int outputType = range["type"].as<int>();
+  if (!validJsonAddress(candidate.rotationAddress, error) ||
+      !isfinite(candidate.absoluteInputMin) ||
+      !isfinite(candidate.absoluteInputMax) ||
+      !isfinite(candidate.incrementScale) || !isfinite(candidate.outputMin) ||
+      !isfinite(candidate.outputMax) || outputType < TYPE_FLOAT ||
+      outputType > TYPE_STRING) {
+    if (error.isEmpty()) error = tr("Encoder number or output type is invalid.", "Encoderの数値または出力の型が正しくありません。");
+    return false;
+  }
+  candidate.outputType = static_cast<ValueType>(outputType);
+  candidate.clickMode = (encoder["clickMode"] | 0) == MODE_SEQUENCE
+                            ? MODE_SEQUENCE : MODE_PRESS_RELEASE;
+  JsonArrayConst press = encoder["press"].as<JsonArrayConst>();
+  JsonArrayConst release = encoder["release"].as<JsonArrayConst>();
+  if (press.size() + release.size() > MAX_KEY_OSC_MESSAGES) {
+    error = tr("Click messages exceed the limit of 8.", "クリックメッセージが8件を超えています。");
+    return false;
+  }
+  candidate.pressMessageCount = static_cast<uint8_t>(press.size());
+  candidate.releaseMessageCount = static_cast<uint8_t>(release.size());
+  uint8_t index = 0;
+  for (JsonObjectConst message : press)
+    if (!jsonMessage(message, candidate.pressMessages[index++], error)) return false;
+  index = 0;
+  for (JsonObjectConst message : release)
+    if (!jsonMessage(message, candidate.releaseMessages[index++], error)) return false;
+  return jsonSequence(encoder["sequence"].as<JsonObjectConst>(),
+                      candidate.clickSequence, error);
+}
+
+bool angleSettingFromJson(JsonObjectConst object, AngleSetting& candidate,
+                          bool includeIdentity, String& error) {
+  if (object.isNull() || !object["deviceType"].is<int>() ||
+      object["deviceType"].as<int>() != CHAIN_ANGLE_DEVICE_TYPE) {
+    error = tr("Device type is not Angle.", "デバイス種類がAngleではありません。");
+    return false;
+  }
+  if (includeIdentity) {
+    if (!object["identity"].is<const char*>() ||
+        !object["displayName"].is<const char*>()) {
+      error = tr("Device identity or name is missing.", "デバイス識別子または名前がありません。");
+      return false;
+    }
+    candidate.identity = object["identity"].as<const char*>();
+    candidate.displayName = object["displayName"].as<const char*>();
+    candidate.identity.trim();
+    candidate.displayName.trim();
+    if (!candidate.identity.startsWith("chain:") ||
+        candidate.identity.length() <= 6 || candidate.displayName.isEmpty() ||
+        candidate.displayName.length() > 64) {
+      error = tr("Device identity or name is invalid.", "デバイス識別子または名前が正しくありません。");
+      return false;
+    }
+  }
+  JsonObjectConst angle = object["angle"].as<JsonObjectConst>();
+  JsonObjectConst range = angle["range"].as<JsonObjectConst>();
+  if (angle.isNull() || range.isNull() ||
+      !angle["address"].is<const char*>() ||
+      !angle["deadband"].is<int>() || !range.containsKey("outMin") ||
+      !range.containsKey("outMax") || !range["type"].is<int>()) {
+    error = tr("Angle settings are missing.", "Angle設定がありません。");
+    return false;
+  }
+  candidate.address = angle["address"].as<const char*>();
+  candidate.address.trim();
+  candidate.use12Bit = angle["use12bit"] | true;
+  candidate.deadband = angle["deadband"].as<int>();
+  candidate.outputMin = range["outMin"].as<float>();
+  candidate.outputMax = range["outMax"].as<float>();
+  const int outputType = range["type"].as<int>();
+  if (!validJsonAddress(candidate.address, error) || candidate.deadband < 1 ||
+      !isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) ||
+      outputType < TYPE_FLOAT || outputType > TYPE_STRING) {
+    if (error.isEmpty())
+      error = tr("Angle values are invalid.", "Angleの設定値が正しくありません。");
+    return false;
+  }
+  candidate.outputType = static_cast<ValueType>(outputType);
+  return true;
+}
+
+bool tofSettingFromJson(JsonObjectConst object, TofSetting& candidate,
+                        bool includeIdentity, String& error) {
+  if (object.isNull() || (object["deviceType"] | -1) != CHAIN_TOF_DEVICE_TYPE) { error = tr("Device type is not ToF.", "デバイス種類がToFではありません。"); return false; }
+  if (includeIdentity) {
+    if (!object["identity"].is<const char*>() || !object["displayName"].is<const char*>()) { error = tr("Device identity or name is missing.", "デバイス識別子または名前がありません。"); return false; }
+    candidate.identity = object["identity"].as<const char*>(); candidate.displayName = object["displayName"].as<const char*>();
+    candidate.identity.trim(); candidate.displayName.trim();
+    if (!candidate.identity.startsWith("chain:") || candidate.identity.length() <= 6 || candidate.displayName.isEmpty() || candidate.displayName.length() > 64) { error = tr("Device identity or name is invalid.", "デバイス識別子または名前が正しくありません。"); return false; }
+  }
+  JsonObjectConst tof = object["tof"].as<JsonObjectConst>(); JsonObjectConst range = tof["range"].as<JsonObjectConst>();
+  if (tof.isNull() || range.isNull() || !tof["address"].is<const char*>() ||
+      !tof["deadband"].is<int>() || !tof["maxDistanceMm"].is<int>() ||
+      !range["outMin"].is<float>() || !range["outMax"].is<float>() ||
+      !range["type"].is<int>()) {
+    error = tr("ToF settings are missing.", "ToF設定がありません。");
+    return false;
+  }
+  candidate.address = tof["address"].as<const char*>(); candidate.address.trim(); candidate.deadband = tof["deadband"].as<int>();
+  candidate.maxDistanceMm = tof["maxDistanceMm"].as<int>(); candidate.nearValueHigh = tof["nearValueHigh"] | false;
+  candidate.outputMin = range["outMin"].as<float>(); candidate.outputMax = range["outMax"].as<float>(); const int type = range["type"].as<int>();
+  if (!validJsonAddress(candidate.address, error) || candidate.deadband < 1 || candidate.deadband > 2000 || candidate.maxDistanceMm < 31 || candidate.maxDistanceMm > 2000 || !isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) || type < TYPE_FLOAT || type > TYPE_INT) { if (error.isEmpty()) error = tr("ToF values are invalid.", "ToFの設定値が正しくありません。"); return false; }
+  candidate.outputType = static_cast<ValueType>(type); return true;
+}
+
+bool joystickSettingFromJson(JsonObjectConst object, JoystickSetting& candidate,
+                             bool includeIdentity, String& error) {
+  if (object.isNull() || (object["deviceType"] | -1) != CHAIN_JOYSTICK_DEVICE_TYPE) { error=tr("Device type is not Joystick.","デバイス種類がJoystickではありません。");return false; }
+  if(includeIdentity){if(!object["identity"].is<const char*>()||!object["displayName"].is<const char*>()){error=tr("Device identity or name is missing.","デバイス識別子または名前がありません。");return false;}candidate.identity=object["identity"].as<const char*>();candidate.displayName=object["displayName"].as<const char*>();candidate.identity.trim();candidate.displayName.trim();if(!candidate.identity.startsWith("chain:")||candidate.identity.length()<=6||candidate.displayName.isEmpty()||candidate.displayName.length()>64){error=tr("Device identity or name is invalid.","デバイス識別子または名前が正しくありません。");return false;}}
+  JsonObjectConst joy=object["joystick"].as<JsonObjectConst>(),range=joy["range"].as<JsonObjectConst>();
+  if(joy.isNull()||range.isNull()||!joy["xAddress"].is<const char*>()||!joy["yAddress"].is<const char*>()||!joy["deadband"].is<int>()||!range["outMin"].is<float>()||!range["outMax"].is<float>()||!range["type"].is<int>()||!joy["press"].is<JsonArrayConst>()||!joy["release"].is<JsonArrayConst>()){error=tr("Joystick settings are missing.","Joystick設定がありません。");return false;}
+  candidate.xAddress=joy["xAddress"].as<const char*>();candidate.yAddress=joy["yAddress"].as<const char*>();candidate.xAddress.trim();candidate.yAddress.trim();candidate.deadband=joy["deadband"].as<int>();candidate.invertX=joy["invertX"]|false;candidate.invertY=joy["invertY"]|false;candidate.outputMin=range["outMin"].as<float>();candidate.outputMax=range["outMax"].as<float>();int type=range["type"].as<int>();
+  if(!validJsonAddress(candidate.xAddress,error)||!validJsonAddress(candidate.yAddress,error)||candidate.deadband<1||candidate.deadband>254||!isfinite(candidate.outputMin)||!isfinite(candidate.outputMax)||type<TYPE_FLOAT||type>TYPE_STRING)return false;candidate.outputType=(ValueType)type;candidate.clickMode=(joy["clickMode"]|0)==MODE_SEQUENCE?MODE_SEQUENCE:MODE_PRESS_RELEASE;
+  JsonArrayConst press=joy["press"].as<JsonArrayConst>(),release=joy["release"].as<JsonArrayConst>();if(press.size()+release.size()>MAX_KEY_OSC_MESSAGES){error=tr("Click messages exceed the limit of 8.","クリックメッセージが8件を超えています。");return false;}candidate.pressMessageCount=press.size();candidate.releaseMessageCount=release.size();uint8_t i=0;for(JsonObjectConst m:press)if(!jsonMessage(m,candidate.pressMessages[i++],error))return false;i=0;for(JsonObjectConst m:release)if(!jsonMessage(m,candidate.releaseMessages[i++],error))return false;return jsonSequence(joy["sequence"].as<JsonObjectConst>(),candidate.clickSequence,error);
+}
+
 void sendProvisioningPage(const String& message = String()) {
   String html = pageStart("ChainOSCmini Wi-Fi Setup");
   html += F("<h1>Chain OSC Setting</h1><div class='card language-row'><h2>");
@@ -404,6 +683,13 @@ String typeSelectHtml(const String& name, ValueType current,
   html += "<option value='0'" + String(current == TYPE_FLOAT ? " selected" : "") + ">Float</option>";
   html += "<option value='1'" + String(current == TYPE_INT ? " selected" : "") + ">Int</option>";
   html += "<option value='2'" + String(current == TYPE_STRING ? " selected" : "") + ">String</option></select>";
+  return html;
+}
+
+String numericTypeSelectHtml(const String& name, ValueType current) {
+  String html = "<select name='" + name + "'>";
+  html += "<option value='0'" + String(current == TYPE_FLOAT ? " selected" : "") + ">Float</option>";
+  html += "<option value='1'" + String(current == TYPE_INT ? " selected" : "") + ">Int</option></select>";
   return html;
 }
 
@@ -459,7 +745,11 @@ void appendKeyCard(String& html, const KeySetting& setting, size_t cardIndex) {
   html += cardIndex;
   html += F(")'>&hellip;</button><div id='device-menu-");
   html += cardIndex;
-  html += F("' class='device-menu' hidden><a href='/export_device_preset?index=");
+  html += F("' class='device-menu' hidden><button type='button' onclick='identifyDevice(");
+  html += cardIndex;
+  html += F(")'>");
+  html += tr("Identify Device (Orange LED for 10s)", "デバイスを識別（LEDを10秒間オレンジ点灯）");
+  html += F("</button><a href='/export_device_preset?index=");
   html += cardIndex;
   html += F("'>");
   html += tr("Export Preset (JSON)", "プリセットをエクスポート（JSON）");
@@ -482,7 +772,9 @@ void appendKeyCard(String& html, const KeySetting& setting, size_t cardIndex) {
   html += cardIndex;
   html += F("' value='");
   html += htmlEscape(setting.identity);
-  html += F("'><div class='key-grid'><div><label>");
+  html += F("'><input type='hidden' name='device_type_");
+  html += cardIndex;
+  html += F("' value='3'><div class='key-grid'><div><label>");
   html += tr("Device Name", "デバイス名");
   html += F("</label><input name='display_name_");
   html += cardIndex;
@@ -533,6 +825,47 @@ void appendKeyCard(String& html, const KeySetting& setting, size_t cardIndex) {
   html += F("</div></div></div></div></div>");
 }
 
+void appendEncoderCard(String& html, const EncoderSetting& setting,
+                       size_t cardIndex) {
+  const String idx = String(cardIndex);
+  const String collapseKey = idx + "-" + setting.identity;
+  KeySetting click;
+  click.mode = setting.clickMode;
+  click.pressMessageCount = setting.pressMessageCount;
+  click.releaseMessageCount = setting.releaseMessageCount;
+  click.sequence = setting.clickSequence;
+  for (uint8_t i = 0; i < setting.pressMessageCount; ++i)
+    click.pressMessages[i] = setting.pressMessages[i];
+  for (uint8_t i = 0; i < setting.releaseMessageCount; ++i)
+    click.releaseMessages[i] = setting.releaseMessages[i];
+
+  html += "<div class='card device' data-device-index='" + idx +
+          "' data-collapse-key='" + htmlEscape(collapseKey) + "'>";
+  html += "<div class='device-head'><h2><button id='collapse-" + idx +
+          "' class='collapse-button' type='button' aria-expanded='true' onclick=\"toggleDevice('" + idx + "','" + htmlEscape(collapseKey) + "')\">&#9660;</button><span class='badge badge-type'>Encoder</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-on'>" + tr("Connected", "接続済み") + "</span></h2>";
+  html += "<div class='device-menu-wrap'><button class='device-menu-button' type='button' aria-label='Device menu' onclick='toggleDeviceMenu(" + idx + ")'>&hellip;</button><div id='device-menu-" + idx + "' class='device-menu' hidden><button type='button' onclick='identifyDevice(" + idx + ")'>" + tr("Identify Device (Orange LED for 10s)", "デバイスを識別（LEDを10秒間オレンジ点灯）") + "</button><a href='/export_device_preset?index=" + idx + "'>" + tr("Export Preset (JSON)", "プリセットをエクスポート（JSON）") + "</a><button type='button' onclick='chooseDevicePreset(" + idx + ")'>" + tr("Import Preset (JSON)", "プリセットをインポート（JSON）") + "</button></div><input id='preset-file-" + idx + "' type='file' accept='application/json,.json' hidden onchange='importDevicePreset(" + idx + ",this)'></div></div>";
+  html += "<div id='device-body-" + idx + "' class='device-body'><div class='uid'>" + htmlEscape(setting.identity) + "</div><p id='preset-status-" + idx + "' class='import-status'></p>";
+  html += "<input type='hidden' name='identity_" + idx + "' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type_" + idx + "' value='1'>";
+  html += "<div class='key-grid'><div><label>" + String(tr("Device Name", "デバイス名")) + "</label><input name='display_name_" + idx + "' maxlength='64' required value='" + htmlEscape(setting.displayName) + "'></div></div>";
+  html += "<div class='encoder-rotation'><h3>" + String(tr("Encoder Rotation", "エンコーダー回転")) + "</h3><div class='encoder-grid'>";
+  html += "<div class='encoder-address address-field'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='enc_rotation_" + idx + "' value='" + htmlEscape(setting.rotationAddress) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html += "<div><label>" + String(tr("Mode", "モード")) + "</label><select name='enc_increment_" + idx + "' onchange='updateEncoderMode(this)'><option value='0'" + String(!setting.sendIncrement ? " selected" : "") + ">" + tr("Absolute", "絶対値") + "</option><option value='1'" + String(setting.sendIncrement ? " selected" : "") + ">" + tr("Increment", "増分") + "</option></select></div>";
+  const String absHiddenClass = setting.sendIncrement ? " encoder-mode-hidden" : "";
+  html += "<div class='encoder-absolute-setting" + absHiddenClass + "'><label>" + String(tr("Abs In Min", "絶対値入力の最小値")) + "</label><input type='number' step='any' name='enc_abs_min_" + idx + "' value='" + String(setting.absoluteInputMin, 7) + "'></div>";
+  html += "<div class='encoder-absolute-setting" + absHiddenClass + "'><label>" + String(tr("Abs In Max", "絶対値入力の最大値")) + "</label><input type='number' step='any' name='enc_abs_max_" + idx + "' value='" + String(setting.absoluteInputMax, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Inc Scale", "増分倍率")) + "</label><input type='number' step='any' name='enc_scale_" + idx + "' value='" + String(setting.incrementScale, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Out Min", "出力最小値")) + "</label><input type='number' step='any' name='enc_out_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Out Max", "出力最大値")) + "</label><input type='number' step='any' name='enc_out_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Out Type", "出力の型")) + "</label>" + typeSelectHtml("enc_out_type_" + idx, setting.outputType) + "</div></div></div>";
+  html += "<div class='click-section'><h3>" + String(tr("Encoder Click", "エンコーダークリック")) + "</h3><div class='key-grid'><div><label>" + String(tr("Click Mode", "クリックモード")) + "</label><select name='mode_" + idx + "' onchange=\"toggleKeyMode('pr-" + idx + "','seq-" + idx + "',this)\"><option value='0'" + String(setting.clickMode == MODE_PRESS_RELEASE ? " selected" : "") + ">" + tr("Press / Release", "押した時／離した時") + "</option><option value='1'" + String(setting.clickMode == MODE_SEQUENCE ? " selected" : "") + ">" + tr("Sequence", "シーケンス") + "</option></select></div></div>";
+  html += pressReleaseHtml(idx, click,
+                           setting.clickMode == MODE_SEQUENCE);
+  html += "<div id='seq-" + idx + "' class='sequence-card' style='display:" + String(setting.clickMode == MODE_SEQUENCE ? "block" : "none") + "'><h3>" + String(tr("Click Sequence", "クリックシーケンス")) + "</h3><div class='seq-grid'>";
+  html += "<div class='address-field seq-address'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='seq_address_" + idx + "' value='" + htmlEscape(setting.clickSequence.address) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html += "<div><label>" + String(tr("Start", "開始値")) + "</label><input type='number' step='any' required name='seq_start_" + idx + "' value='" + String(setting.clickSequence.start, 7) + "'></div><div><label>" + String(tr("End", "終了値")) + "</label><input type='number' step='any' required name='seq_end_" + idx + "' value='" + String(setting.clickSequence.end, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Step", "増減量")) + "</label><input type='number' step='any' required name='seq_step_" + idx + "' value='" + String(setting.clickSequence.step, 7) + "'></div><div><label>" + String(tr("Type", "型")) + "</label>" + typeSelectHtml("seq_type_" + idx, setting.clickSequence.valueType) + "</div></div></div></div></div></div>";
+}
+
 void appendSavedDeviceCard(String& html, const KeySetting& setting) {
   String uid = setting.identity.startsWith("chain:")
                    ? setting.identity.substring(6) : setting.identity;
@@ -551,7 +884,83 @@ void appendSavedDeviceCard(String& html, const KeySetting& setting) {
   html += F("</button></form></div>");
 }
 
+void appendSavedEncoderCard(String& html, const EncoderSetting& setting) {
+  const String uid = setting.identity.startsWith("chain:")
+                         ? setting.identity.substring(6) : setting.identity;
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Encoder</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Encoder</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
+  html += "<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='1'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+}
+
+void appendAngleCard(String& html, const AngleSetting& setting,
+                     size_t cardIndex) {
+  const String idx = String(cardIndex);
+  const String collapseKey = idx + "-" + setting.identity;
+  html += "<div class='card device' data-device-index='" + idx +
+          "' data-collapse-key='" + htmlEscape(collapseKey) + "'>";
+  html += "<div class='device-head'><h2><button id='collapse-" + idx +
+          "' class='collapse-button' type='button' aria-expanded='true' onclick=\"toggleDevice('" + idx + "','" + htmlEscape(collapseKey) + "')\">&#9660;</button><span class='badge badge-type'>Angle</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-on'>" + tr("Connected", "接続済み") + "</span></h2>";
+  html += "<div class='device-menu-wrap'><button class='device-menu-button' type='button' aria-label='Device menu' onclick='toggleDeviceMenu(" + idx + ")'>&hellip;</button><div id='device-menu-" + idx + "' class='device-menu' hidden><button type='button' onclick='identifyDevice(" + idx + ")'>" + tr("Identify Device (Orange LED for 10s)", "デバイスを識別（LEDを10秒間オレンジ点灯）") + "</button><a href='/export_device_preset?index=" + idx + "'>" + tr("Export Preset (JSON)", "プリセットをエクスポート（JSON）") + "</a><button type='button' onclick='chooseDevicePreset(" + idx + ")'>" + tr("Import Preset (JSON)", "プリセットをインポート（JSON）") + "</button></div><input id='preset-file-" + idx + "' type='file' accept='application/json,.json' hidden onchange='importDevicePreset(" + idx + ",this)'></div></div>";
+  html += "<div id='device-body-" + idx + "' class='device-body'><div class='uid'>" + htmlEscape(setting.identity) + "</div><p id='preset-status-" + idx + "' class='import-status'></p>";
+  html += "<input type='hidden' name='identity_" + idx + "' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type_" + idx + "' value='2'>";
+  html += "<div class='key-grid'><div><label>" + String(tr("Device Name", "デバイス名")) + "</label><input name='display_name_" + idx + "' maxlength='64' required value='" + htmlEscape(setting.displayName) + "'></div></div>";
+  html += "<div class='angle-section'><h3>Angle</h3><div class='angle-grid'>";
+  html += "<div class='address-field angle-address'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='angle_address_" + idx + "' value='" + htmlEscape(setting.address) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html += "<div><label>" + String(tr("Resolution", "分解能")) + "</label><select name='angle_12bit_" + idx + "'><option value='1'" + String(setting.use12Bit ? " selected" : "") + ">12-bit</option><option value='0'" + String(!setting.use12Bit ? " selected" : "") + ">8-bit</option></select></div>";
+  html += "<div><label>" + String(tr("Deadband", "不感帯")) + "</label><input type='number' min='1' required name='angle_deadband_" + idx + "' value='" + String(setting.deadband) + "'></div>";
+  html += "<div><label>" + String(tr("Out Min", "出力最小値")) + "</label><input type='number' step='any' required name='angle_out_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Out Max", "出力最大値")) + "</label><input type='number' step='any' required name='angle_out_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div>";
+  html += "<div><label>" + String(tr("Out Type", "出力の型")) + "</label>" + typeSelectHtml("angle_out_type_" + idx, setting.outputType) + "</div></div></div></div></div>";
+}
+
+void appendSavedAngleCard(String& html, const AngleSetting& setting) {
+  const String uid = setting.identity.startsWith("chain:")
+                         ? setting.identity.substring(6) : setting.identity;
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Angle</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Angle</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
+  html += "<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='2'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+}
+
+void appendTofCard(String& html, const TofSetting& setting, size_t cardIndex) {
+  const String idx = String(cardIndex), collapseKey = idx + "-" + setting.identity;
+  html += "<div class='card device' data-device-index='" + idx + "' data-collapse-key='" + htmlEscape(collapseKey) + "'><div class='device-head'><h2><button id='collapse-" + idx + "' class='collapse-button' type='button' aria-expanded='true' onclick=\"toggleDevice('" + idx + "','" + htmlEscape(collapseKey) + "')\">&#9660;</button><span class='badge badge-type'>ToF</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-on'>" + tr("Connected", "接続済み") + "</span></h2>";
+  html += "<div class='device-menu-wrap'><button class='device-menu-button' type='button' aria-label='Device menu' onclick='toggleDeviceMenu(" + idx + ")'>&hellip;</button><div id='device-menu-" + idx + "' class='device-menu' hidden><button type='button' onclick='identifyDevice(" + idx + ")'>" + tr("Identify Device (Orange LED for 10s)", "デバイスを識別（LEDを10秒間オレンジ点灯）") + "</button><a href='/export_device_preset?index=" + idx + "'>" + tr("Export Preset (JSON)", "プリセットをエクスポート（JSON）") + "</a><button type='button' onclick='chooseDevicePreset(" + idx + ")'>" + tr("Import Preset (JSON)", "プリセットをインポート（JSON）") + "</button></div><input id='preset-file-" + idx + "' type='file' accept='application/json,.json' hidden onchange='importDevicePreset(" + idx + ",this)'></div></div>";
+  html += "<div id='device-body-" + idx + "' class='device-body'><div class='uid'>" + htmlEscape(setting.identity) + "</div><p id='preset-status-" + idx + "' class='import-status'></p><input type='hidden' name='identity_" + idx + "' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type_" + idx + "' value='5'>";
+  html += "<div class='key-grid'><div><label>" + String(tr("Device Name", "デバイス名")) + "</label><input name='display_name_" + idx + "' maxlength='64' required value='" + htmlEscape(setting.displayName) + "'></div></div>";
+  html += "<div class='tof-section'><h3>" + String(tr("ToF Distance (mm)", "ToF距離 (mm)")) + "</h3><div class='tof-grid'>";
+  html += "<div class='address-field tof-address'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='tof_address_" + idx + "' value='" + htmlEscape(setting.address) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html += "<div><label>" + String(tr("Deadband (mm)", "不感帯 (mm)")) + "</label><input type='number' min='1' max='2000' required name='tof_deadband_" + idx + "' value='" + String(setting.deadband) + "'></div>";
+  html += "<div><label>" + String(tr("Maximum Distance (mm)", "最大距離 (mm)")) + "</label><input type='number' min='31' max='2000' required name='tof_max_" + idx + "' value='" + String(setting.maxDistanceMm) + "'></div>";
+  html += "<div><label>" + String(tr("Direction", "変換方向")) + "</label><select name='tof_near_high_" + idx + "'><option value='0'" + String(!setting.nearValueHigh ? " selected" : "") + ">" + tr("Near → Out Min / Far → Out Max", "近い → 出力最小値／遠い → 出力最大値") + "</option><option value='1'" + String(setting.nearValueHigh ? " selected" : "") + ">" + tr("Near → Out Max / Far → Out Min", "近い → 出力最大値／遠い → 出力最小値") + "</option></select></div>";
+  html += "<div><label>" + String(tr("Out Min", "出力最小値")) + "</label><input type='number' step='any' required name='tof_out_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div><div><label>" + String(tr("Out Max", "出力最大値")) + "</label><input type='number' step='any' required name='tof_out_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div><div><label>" + String(tr("Out Type", "出力の型")) + "</label>" + numericTypeSelectHtml("tof_out_type_" + idx, setting.outputType) + "</div>";
+  html += "<p class='note tof-address'>" + String(tr("OSC is sent only while the measured distance is 30 mm or more and less than Maximum Distance.", "測定距離が30 mm以上かつ最大距離未満の間だけOSCを送信します。")) + "</p></div></div></div></div>";
+}
+
+void appendSavedTofCard(String& html, const TofSetting& setting) {
+  const String uid = setting.identity.startsWith("chain:") ? setting.identity.substring(6) : setting.identity;
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>ToF</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>ToF</strong></p><div class='uid'>" + htmlEscape(uid) + "</div><form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='5'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+}
+
+void appendJoystickCard(String& html, const JoystickSetting& setting, size_t cardIndex) {
+  const String idx=String(cardIndex),collapseKey=idx+"-"+setting.identity;KeySetting click;click.mode=setting.clickMode;click.pressMessageCount=setting.pressMessageCount;click.releaseMessageCount=setting.releaseMessageCount;click.sequence=setting.clickSequence;for(uint8_t i=0;i<setting.pressMessageCount;++i)click.pressMessages[i]=setting.pressMessages[i];for(uint8_t i=0;i<setting.releaseMessageCount;++i)click.releaseMessages[i]=setting.releaseMessages[i];
+  html+="<div class='card device' data-device-index='"+idx+"' data-collapse-key='"+htmlEscape(collapseKey)+"'><div class='device-head'><h2><button id='collapse-"+idx+"' class='collapse-button' type='button' aria-expanded='true' onclick=\"toggleDevice('"+idx+"','"+htmlEscape(collapseKey)+"')\">&#9660;</button><span class='badge badge-type'>Joystick</span> "+htmlEscape(setting.displayName)+" <span class='badge badge-on'>"+tr("Connected","接続済み")+"</span></h2>";
+  html+="<div class='device-menu-wrap'><button class='device-menu-button' type='button' onclick='toggleDeviceMenu("+idx+")'>&hellip;</button><div id='device-menu-"+idx+"' class='device-menu' hidden><button type='button' onclick='identifyDevice("+idx+")'>"+tr("Identify Device (Orange LED for 10s)","デバイスを識別（LEDを10秒間オレンジ点灯）")+"</button><a href='/export_device_preset?index="+idx+"'>"+tr("Export Preset (JSON)","プリセットをエクスポート（JSON）")+"</a><button type='button' onclick='chooseDevicePreset("+idx+")'>"+tr("Import Preset (JSON)","プリセットをインポート（JSON）")+"</button></div><input id='preset-file-"+idx+"' type='file' accept='application/json,.json' hidden onchange='importDevicePreset("+idx+",this)'></div></div>";
+  html+="<div id='device-body-"+idx+"' class='device-body'><div class='uid'>"+htmlEscape(setting.identity)+"</div><p id='preset-status-"+idx+"' class='import-status'></p><input type='hidden' name='identity_"+idx+"' value='"+htmlEscape(setting.identity)+"'><input type='hidden' name='device_type_"+idx+"' value='4'><div class='key-grid'><div><label>"+tr("Device Name","デバイス名")+"</label><input name='display_name_"+idx+"' maxlength='64' required value='"+htmlEscape(setting.displayName)+"'></div></div>";
+  html+="<div class='joystick-section'><h3>"+String(tr("Joystick XY","ジョイスティック XY"))+"</h3><div class='joystick-grid'>";
+  html+="<div class='address-field joystick-address'><label>"+String(tr("X Address","X軸OSCアドレス"))+"</label><input class='osc-address' maxlength='192' required name='joy_x_"+idx+"' value='"+htmlEscape(setting.xAddress)+"' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html+="<div class='address-field joystick-address'><label>"+String(tr("Y Address","Y軸OSCアドレス"))+"</label><input class='osc-address' maxlength='192' required name='joy_y_"+idx+"' value='"+htmlEscape(setting.yAddress)+"' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
+  html+="<div class='joystick-invert'><label><input type='checkbox' name='joy_inv_x_"+idx+"' value='1'"+String(setting.invertX?" checked":"")+"><span>"+tr("Invert X (+/-)","X軸反転 (+/-)")+"</span></label><label><input type='checkbox' name='joy_inv_y_"+idx+"' value='1'"+String(setting.invertY?" checked":"")+"><span>"+tr("Invert Y (+/-)","Y軸反転 (+/-)")+"</span></label></div>";
+  html+="<div><label>"+String(tr("Deadband","不感帯"))+"</label><input type='number' min='1' max='254' name='joy_deadband_"+idx+"' value='"+String(setting.deadband)+"'></div><div><label>"+String(tr("Out Min","出力最小値"))+"</label><input type='number' step='any' name='joy_out_min_"+idx+"' value='"+String(setting.outputMin,7)+"'></div><div><label>"+String(tr("Out Max","出力最大値"))+"</label><input type='number' step='any' name='joy_out_max_"+idx+"' value='"+String(setting.outputMax,7)+"'></div><div><label>"+String(tr("Out Type","出力の型"))+"</label>"+typeSelectHtml("joy_out_type_"+idx,setting.outputType)+"</div></div></div>";
+  html+="<div class='click-section'><h3>"+String(tr("Joystick Click","ジョイスティッククリック"))+"</h3><div class='key-grid'><div><label>"+String(tr("Click Mode","クリックモード"))+"</label><select name='mode_"+idx+"' onchange=\"toggleKeyMode('pr-"+idx+"','seq-"+idx+"',this)\"><option value='0'"+String(setting.clickMode==MODE_PRESS_RELEASE?" selected":"")+">"+tr("Press / Release","押した時／離した時")+"</option><option value='1'"+String(setting.clickMode==MODE_SEQUENCE?" selected":"")+">"+tr("Sequence","シーケンス")+"</option></select></div></div>"+pressReleaseHtml(idx,click,setting.clickMode==MODE_SEQUENCE);
+  html+="<div id='seq-"+idx+"' class='sequence-card' style='display:"+String(setting.clickMode==MODE_SEQUENCE?"block":"none")+"'><h3>"+String(tr("Click Sequence","クリックシーケンス"))+"</h3><div class='seq-grid'><div class='address-field seq-address'><label>"+String(tr("OSC Address","OSCアドレス"))+"</label><input class='osc-address' maxlength='192' required name='seq_address_"+idx+"' value='"+htmlEscape(setting.clickSequence.address)+"' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div><div><label>"+tr("Start","開始値")+"</label><input type='number' step='any' name='seq_start_"+idx+"' value='"+String(setting.clickSequence.start,7)+"'></div><div><label>"+tr("End","終了値")+"</label><input type='number' step='any' name='seq_end_"+idx+"' value='"+String(setting.clickSequence.end,7)+"'></div><div><label>"+tr("Step","増減量")+"</label><input type='number' step='any' name='seq_step_"+idx+"' value='"+String(setting.clickSequence.step,7)+"'></div><div><label>"+tr("Type","型")+"</label>"+typeSelectHtml("seq_type_"+idx,setting.clickSequence.valueType)+"</div></div></div></div></div></div>";
+}
+
+void appendSavedJoystickCard(String& html,const JoystickSetting& setting){const String uid=setting.identity.startsWith("chain:")?setting.identity.substring(6):setting.identity;html+="<div class='card saved-device-card'><h2><span class='badge badge-type'>Joystick</span> "+htmlEscape(setting.displayName)+" <span class='badge badge-off'>"+tr("Not Connected","未接続")+"</span></h2><p class='meta'>"+tr("Type: ","種類: ")+"<strong>Joystick</strong></p><div class='uid'>"+htmlEscape(uid)+"</div><form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='"+htmlEscape(setting.identity)+"'><input type='hidden' name='device_type' value='4'><button class='btn-warning' type='submit'>"+tr("Delete Settings","設定を削除")+"</button></form></div>";}
+
 void sendStatusPage(const String& message = String()) {
+#if CHAINOSCMINI_WEB_PERF_DEBUG
+  const uint32_t requestId = ++webRequestSequence;
+  const uint32_t requestStartedMs = millis();
+  logWebPerf(requestId, requestStartedMs, "BEGIN", 0, 0, 0);
+#endif
   String html = pageStart("ChainOSCmini");
   html += F("<div id='save-toast' class='toast' hidden></div><h1>Chain OSC Setting</h1>");
   html += F("<div class='card language-row'><h2>"); html += tr("Language", "言語");
@@ -562,7 +971,9 @@ void sendStatusPage(const String& message = String()) {
   html += F(">日本語</option></select></form></div>");
   html += F("<div class='card'><h2>"); html += tr("System", "システム");
   html += F("</h2><p class='status'>"); html += tr("Wi-Fi connected", "Wi-Fi接続済み");
-  html += F("</p><div class='system-grid'><div class='system-item'><strong>Version</strong>");
+  html += F("</p><div class='system-grid'><div class='system-item'><strong>");
+  html += tr("Product", "製品名");
+  html += F("</strong><code>ChainOSCmini</code></div><div class='system-item'><strong>Version</strong>");
   html += APP_VERSION;
   html += F("</div><div class='system-item'><strong>"); html += tr("IP Address", "IPアドレス"); html += F("</strong><code>");
   html += WiFi.localIP().toString();
@@ -600,12 +1011,113 @@ void sendStatusPage(const String& message = String()) {
   html += oscTargetPort();
   html += F("'></div>");
   html += F("<h2 class='section-title'>"); html += tr("Connected Devices", "接続中のデバイス"); html += F("</h2>");
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "text/html; charset=utf-8", "");
+  size_t sentCards = 0;
+  auto flushHtml = [&](const char* phase) -> bool {
+    const size_t bytes = html.length();
+    if (!server.client().connected()) {
+#if CHAINOSCMINI_WEB_PERF_DEBUG
+      logWebPerf(requestId, requestStartedMs, phase, bytes, 0, sentCards);
+#endif
+      html.remove(0);
+      return false;
+    }
+    const uint32_t operationStartedMs = millis();
+    server.sendContent(html);
+    const uint32_t operationMs = millis() - operationStartedMs;
+    html.remove(0);
+    yield();
+#if CHAINOSCMINI_WEB_PERF_DEBUG
+    logWebPerf(requestId, requestStartedMs, phase, bytes, operationMs,
+               sentCards);
+#endif
+    return server.client().connected();
+  };
+  if (!flushHtml("COMMON_SENT")) return;
+
   size_t cardIndex = 0;
+  // The two built-in DualKey buttons are not on either Chain port, so keep
+  // them at the top of the connected-device section.
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
-    if (setting != nullptr &&
-        (setting->builtIn || setting->connectedPortMask != 0)) {
+    if (setting != nullptr && setting->builtIn) {
       appendKeyCard(html, *setting, cardIndex++);
+      ++sentCards;
+      if (!flushHtml("DEVICE_SENT")) return;
+    }
+  }
+
+  // Preserve the physical topology reported by M5Chain: GPIO5/6 from the
+  // DualKey outward, followed by GPIO47/48 from the DualKey outward.
+  const size_t connectedChainCount = chainPortConnectedDeviceCount();
+  for (size_t physicalIndex = 0; physicalIndex < connectedChainCount;
+       ++physicalIndex) {
+    String identity;
+    uint8_t deviceType = 0;
+    if (!chainPortConnectedDeviceAt(physicalIndex, identity, deviceType)) {
+      continue;
+    }
+
+    bool appended = false;
+    if (deviceType == 3) {  // Chain Key
+      for (size_t index = 0; index < keySettingsCount(); ++index) {
+        KeySetting* setting = keySettingsAt(index);
+        if (setting != nullptr && !setting->builtIn &&
+            setting->connectedPortMask != 0 &&
+            setting->identity == identity) {
+          appendKeyCard(html, *setting, cardIndex++);
+          appended = true;
+          break;
+        }
+      }
+    } else if (deviceType == 1) {  // Chain Encoder
+      for (size_t index = 0; index < encoderSettingsCount(); ++index) {
+        EncoderSetting* setting = encoderSettingsAt(index);
+        if (setting != nullptr && setting->connectedPortMask != 0 &&
+            setting->identity == identity) {
+          appendEncoderCard(html, *setting, cardIndex++);
+          appended = true;
+          break;
+        }
+      }
+    } else if (deviceType == 2) {  // Chain Angle
+      for (size_t index = 0; index < angleSettingsCount(); ++index) {
+        AngleSetting* setting = angleSettingsAt(index);
+        if (setting != nullptr && setting->connectedPortMask != 0 &&
+            setting->identity == identity) {
+          appendAngleCard(html, *setting, cardIndex++);
+          appended = true;
+          break;
+        }
+      }
+    } else if (deviceType == 5) {  // Chain ToF
+      for (size_t index = 0; index < tofSettingsCount(); ++index) {
+        TofSetting* setting = tofSettingsAt(index);
+        if (setting != nullptr && setting->connectedPortMask != 0 &&
+            setting->identity == identity) {
+          appendTofCard(html, *setting, cardIndex++);
+          appended = true;
+          break;
+        }
+      }
+    } else if (deviceType == 4) {  // Chain Joystick
+      for (size_t index = 0; index < joystickSettingsCount(); ++index) {
+        JoystickSetting* setting = joystickSettingsAt(index);
+        if (setting != nullptr && setting->connectedPortMask != 0 &&
+            setting->identity == identity) {
+          appendJoystickCard(html, *setting, cardIndex++);
+          appended = true;
+          break;
+        }
+      }
+    }
+
+    if (appended) {
+      ++sentCards;
+      if (!flushHtml("DEVICE_SENT")) return;
     }
   }
   html += F("<input type='hidden' name='connected_count' value='");
@@ -620,14 +1132,49 @@ void sendStatusPage(const String& message = String()) {
   html += F("</h2><p class='note'>");
   html += tr("Only saved devices that are not currently connected are shown.", "設定が保存されており、現在は接続されていないデバイスだけを表示します。");
   html += F("</p></div>");
+  if (!flushHtml("SAVED_HEADER_SENT")) return;
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
     if (setting != nullptr && !setting->builtIn &&
         setting->connectedPortMask == 0) {
       appendSavedDeviceCard(html, *setting);
+      if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
-  sendPage(html);
+  for (size_t index = 0; index < encoderSettingsCount(); ++index) {
+    EncoderSetting* setting = encoderSettingsAt(index);
+    if (setting != nullptr && setting->connectedPortMask == 0) {
+      appendSavedEncoderCard(html, *setting);
+      if (!flushHtml("SAVED_DEVICE_SENT")) return;
+    }
+  }
+  for (size_t index = 0; index < angleSettingsCount(); ++index) {
+    AngleSetting* setting = angleSettingsAt(index);
+    if (setting != nullptr && setting->connectedPortMask == 0) {
+      appendSavedAngleCard(html, *setting);
+      if (!flushHtml("SAVED_DEVICE_SENT")) return;
+    }
+  }
+  for (size_t index = 0; index < tofSettingsCount(); ++index) {
+    TofSetting* setting = tofSettingsAt(index);
+    if (setting != nullptr && setting->connectedPortMask == 0) {
+      appendSavedTofCard(html, *setting);
+      if (!flushHtml("SAVED_DEVICE_SENT")) return;
+    }
+  }
+  for (size_t index = 0; index < joystickSettingsCount(); ++index) {
+    JoystickSetting* setting = joystickSettingsAt(index);
+    if (setting && setting->connectedPortMask == 0) {
+      appendSavedJoystickCard(html, *setting);
+      if (!flushHtml("SAVED_DEVICE_SENT")) return;
+    }
+  }
+  html += F("</main></body></html>");
+  if (!flushHtml("FOOTER_SENT")) return;
+  server.sendContent("");
+#if CHAINOSCMINI_WEB_PERF_DEBUG
+  logWebPerf(requestId, requestStartedMs, "END", 0, 0, sentCards);
+#endif
 }
 
 bool parseInt32(const String& text, int32_t& value) {
@@ -708,6 +1255,167 @@ bool readKeySetting(size_t formIndex, KeySetting& candidate) {
   return valid;
 }
 
+bool readEncoderSetting(size_t formIndex, EncoderSetting& candidate) {
+  const String suffix = "_" + String(formIndex);
+  const String identity = server.arg("identity" + suffix);
+  EncoderSetting* current = nullptr;
+  for (size_t index = 0; index < encoderSettingsCount(); ++index) {
+    EncoderSetting* setting = encoderSettingsAt(index);
+    if (setting && setting->identity == identity &&
+        setting->connectedPortMask != 0) {
+      current = setting;
+      break;
+    }
+  }
+  if (!current) return false;
+  candidate = *current;
+  candidate.displayName = server.arg("display_name" + suffix);
+  candidate.displayName.trim();
+  candidate.rotationAddress = server.arg("enc_rotation" + suffix);
+  candidate.rotationAddress.trim();
+  candidate.sendIncrement = server.arg("enc_increment" + suffix).toInt() != 0;
+
+  auto readFloat = [&](const String& name, float& value) {
+    const String text = server.arg(name + suffix);
+    char* end = nullptr;
+    value = strtof(text.c_str(), &end);
+    return end != text.c_str() && *end == '\0' && isfinite(value);
+  };
+  String rotationError;
+  bool valid = !candidate.displayName.isEmpty() &&
+               candidate.displayName.length() <= 64 &&
+               validJsonAddress(candidate.rotationAddress, rotationError);
+  valid = valid && readFloat("enc_abs_min", candidate.absoluteInputMin) &&
+          readFloat("enc_abs_max", candidate.absoluteInputMax) &&
+          readFloat("enc_scale", candidate.incrementScale) &&
+          readFloat("enc_out_min", candidate.outputMin) &&
+          readFloat("enc_out_max", candidate.outputMax);
+  candidate.outputType = static_cast<ValueType>(constrain(
+      server.arg("enc_out_type" + suffix).toInt(), 0, 2));
+  candidate.clickMode = server.arg("mode" + suffix).toInt() == MODE_SEQUENCE
+                            ? MODE_SEQUENCE : MODE_PRESS_RELEASE;
+  const int pressCount = server.arg("p_count" + suffix).toInt();
+  const int releaseCount = server.arg("r_count" + suffix).toInt();
+  if (pressCount < 0 || releaseCount < 0 ||
+      pressCount + releaseCount > MAX_KEY_OSC_MESSAGES)
+    return false;
+  candidate.pressMessageCount = static_cast<uint8_t>(pressCount);
+  candidate.releaseMessageCount = static_cast<uint8_t>(releaseCount);
+  for (uint8_t index = 0; valid && index < candidate.pressMessageCount; ++index) {
+    KeyOscMessage& message = candidate.pressMessages[index];
+    const String item = suffix + "_" + String(index);
+    message.address = server.arg("p_address" + item);
+    message.address.trim();
+    message.valueStr = server.arg("p_value" + item);
+    message.valueType = static_cast<ValueType>(constrain(
+        server.arg("p_type" + item).toInt(), 0, 2));
+    String error;
+    valid = validJsonAddress(message.address, error) &&
+            message.valueStr.length() <= 128;
+    if (valid && message.valueType == TYPE_INT) {
+      int32_t parsed = 0;
+      valid = parseInt32(message.valueStr, parsed);
+    } else if (valid && message.valueType == TYPE_FLOAT) {
+      char* end = nullptr;
+      const float parsed = strtof(message.valueStr.c_str(), &end);
+      valid = end != message.valueStr.c_str() && *end == '\0' && isfinite(parsed);
+    }
+  }
+  for (uint8_t index = 0; valid && index < candidate.releaseMessageCount; ++index) {
+    KeyOscMessage& message = candidate.releaseMessages[index];
+    const String item = suffix + "_" + String(index);
+    message.address = server.arg("r_address" + item);
+    message.address.trim();
+    message.valueStr = server.arg("r_value" + item);
+    message.valueType = static_cast<ValueType>(constrain(
+        server.arg("r_type" + item).toInt(), 0, 2));
+    String error;
+    valid = validJsonAddress(message.address, error) &&
+            message.valueStr.length() <= 128;
+    if (valid && message.valueType == TYPE_INT) {
+      int32_t parsed = 0;
+      valid = parseInt32(message.valueStr, parsed);
+    } else if (valid && message.valueType == TYPE_FLOAT) {
+      char* end = nullptr;
+      const float parsed = strtof(message.valueStr.c_str(), &end);
+      valid = end != message.valueStr.c_str() && *end == '\0' && isfinite(parsed);
+    }
+  }
+  candidate.clickSequence.address = server.arg("seq_address" + suffix);
+  candidate.clickSequence.address.trim();
+  String addressError;
+  valid = valid && validJsonAddress(candidate.clickSequence.address, addressError) &&
+          readFloat("seq_start", candidate.clickSequence.start) &&
+          readFloat("seq_end", candidate.clickSequence.end) &&
+          readFloat("seq_step", candidate.clickSequence.step);
+  candidate.clickSequence.valueType = static_cast<ValueType>(constrain(
+      server.arg("seq_type" + suffix).toInt(), 0, 2));
+  keySettingsNormalizeSequence(candidate.clickSequence);
+  return valid;
+}
+
+bool readAngleSetting(size_t formIndex, AngleSetting& candidate) {
+  const String suffix = "_" + String(formIndex);
+  const String identity = server.arg("identity" + suffix);
+  AngleSetting* current = nullptr;
+  for (size_t index = 0; index < angleSettingsCount(); ++index) {
+    AngleSetting* setting = angleSettingsAt(index);
+    if (setting && setting->identity == identity &&
+        setting->connectedPortMask != 0) {
+      current = setting;
+      break;
+    }
+  }
+  if (!current) return false;
+  candidate = *current;
+  candidate.displayName = server.arg("display_name" + suffix);
+  candidate.displayName.trim();
+  candidate.address = server.arg("angle_address" + suffix);
+  candidate.address.trim();
+  candidate.use12Bit = server.arg("angle_12bit" + suffix).toInt() != 0;
+  candidate.deadband = server.arg("angle_deadband" + suffix).toInt();
+  auto readFloat = [&](const String& name, float& value) {
+    const String text = server.arg(name + suffix);
+    char* end = nullptr;
+    value = strtof(text.c_str(), &end);
+    return end != text.c_str() && *end == '\0' && isfinite(value);
+  };
+  String error;
+  if (candidate.displayName.isEmpty() || candidate.displayName.length() > 64 ||
+      !validJsonAddress(candidate.address, error) || candidate.deadband < 1 ||
+      !readFloat("angle_out_min", candidate.outputMin) ||
+      !readFloat("angle_out_max", candidate.outputMax))
+    return false;
+  candidate.outputType = static_cast<ValueType>(constrain(
+      server.arg("angle_out_type" + suffix).toInt(), 0, 2));
+  return true;
+}
+
+bool readTofSetting(size_t formIndex, TofSetting& candidate) {
+  const String suffix = "_" + String(formIndex), identity = server.arg("identity" + suffix);
+  TofSetting* current = nullptr;
+  for (size_t index = 0; index < tofSettingsCount(); ++index) {
+    TofSetting* setting = tofSettingsAt(index);
+    if (setting && setting->identity == identity && setting->connectedPortMask) { current = setting; break; }
+  }
+  if (!current) return false;
+  candidate = *current; candidate.displayName = server.arg("display_name" + suffix); candidate.displayName.trim();
+  candidate.address = server.arg("tof_address" + suffix); candidate.address.trim();
+  candidate.deadband = server.arg("tof_deadband" + suffix).toInt(); candidate.maxDistanceMm = server.arg("tof_max" + suffix).toInt();
+  candidate.nearValueHigh = server.arg("tof_near_high" + suffix).toInt() != 0;
+  auto readFloat = [&](const String& name, float& value) { const String text = server.arg(name + suffix); char* end = nullptr; value = strtof(text.c_str(), &end); return end != text.c_str() && *end == '\0' && isfinite(value); };
+  String error; const int type = server.arg("tof_out_type" + suffix).toInt();
+  if (candidate.displayName.isEmpty() || candidate.displayName.length() > 64 || !validJsonAddress(candidate.address, error) || candidate.deadband < 1 || candidate.deadband > 2000 || candidate.maxDistanceMm < 31 || candidate.maxDistanceMm > 2000 || !readFloat("tof_out_min", candidate.outputMin) || !readFloat("tof_out_max", candidate.outputMax) || type < TYPE_FLOAT || type > TYPE_INT) return false;
+  candidate.outputType = static_cast<ValueType>(type); return true;
+}
+
+bool readJoystickSetting(size_t formIndex, JoystickSetting& candidate) {
+  const String suffix="_"+String(formIndex),identity=server.arg("identity"+suffix);JoystickSetting* current=nullptr;for(size_t i=0;i<joystickSettingsCount();++i){JoystickSetting* s=joystickSettingsAt(i);if(s&&s->identity==identity&&s->connectedPortMask){current=s;break;}}if(!current)return false;candidate=*current;candidate.displayName=server.arg("display_name"+suffix);candidate.displayName.trim();candidate.xAddress=server.arg("joy_x"+suffix);candidate.yAddress=server.arg("joy_y"+suffix);candidate.xAddress.trim();candidate.yAddress.trim();candidate.deadband=server.arg("joy_deadband"+suffix).toInt();candidate.invertX=server.hasArg("joy_inv_x"+suffix);candidate.invertY=server.hasArg("joy_inv_y"+suffix);candidate.clickMode=server.arg("mode"+suffix).toInt()==MODE_SEQUENCE?MODE_SEQUENCE:MODE_PRESS_RELEASE;
+  auto number=[&](const String& name,float& value){String text=server.arg(name+suffix);char* end=nullptr;value=strtof(text.c_str(),&end);return end!=text.c_str()&&*end=='\0'&&isfinite(value);};String error;if(candidate.displayName.isEmpty()||candidate.displayName.length()>64||!validJsonAddress(candidate.xAddress,error)||!validJsonAddress(candidate.yAddress,error)||candidate.deadband<1||candidate.deadband>254||!number("joy_out_min",candidate.outputMin)||!number("joy_out_max",candidate.outputMax))return false;candidate.outputType=(ValueType)constrain(server.arg("joy_out_type"+suffix).toInt(),0,2);
+  int pc=server.arg("p_count"+suffix).toInt(),rc=server.arg("r_count"+suffix).toInt();if(pc<0||rc<0||pc+rc>MAX_KEY_OSC_MESSAGES)return false;candidate.pressMessageCount=pc;candidate.releaseMessageCount=rc;bool valid=true;auto readMessages=[&](bool press){uint8_t count=press?candidate.pressMessageCount:candidate.releaseMessageCount;KeyOscMessage* messages=press?candidate.pressMessages:candidate.releaseMessages;const String prefix=press?"p":"r";for(uint8_t i=0;valid&&i<count;++i){String item=suffix+"_"+String(i);messages[i].address=server.arg(prefix+"_address"+item);messages[i].address.trim();messages[i].valueStr=server.arg(prefix+"_value"+item);messages[i].valueType=(ValueType)constrain(server.arg(prefix+"_type"+item).toInt(),0,2);String e;valid=validJsonAddress(messages[i].address,e)&&messages[i].valueStr.length()<=128;if(valid&&messages[i].valueType==TYPE_INT){int32_t parsed;valid=parseInt32(messages[i].valueStr,parsed);}else if(valid&&messages[i].valueType==TYPE_FLOAT){char* end=nullptr;float v=strtof(messages[i].valueStr.c_str(),&end);valid=end!=messages[i].valueStr.c_str()&&*end=='\0'&&isfinite(v);}}};readMessages(true);readMessages(false);
+  candidate.clickSequence.address=server.arg("seq_address"+suffix);candidate.clickSequence.address.trim();valid=valid&&validJsonAddress(candidate.clickSequence.address,error)&&number("seq_start",candidate.clickSequence.start)&&number("seq_end",candidate.clickSequence.end)&&number("seq_step",candidate.clickSequence.step);candidate.clickSequence.valueType=(ValueType)constrain(server.arg("seq_type"+suffix).toInt(),0,2);keySettingsNormalizeSequence(candidate.clickSequence);return valid;
+}
+
 void sendActionResult(int status, const String& message) {
   if (server.hasArg("ajax")) server.send(status, "text/plain; charset=utf-8", message);
   else sendStatusPage(message);
@@ -727,8 +1435,24 @@ void handleSaveAll() {
   }
   const int count = constrain(server.arg("connected_count").toInt(), 0, 40);
   for (int i = 0; i < count; ++i) {
-    KeySetting candidate;
-    if (!readKeySetting(i, candidate)) {
+    const int type = server.arg("device_type_" + String(i)).toInt();
+    KeySetting keyCandidate;
+    EncoderSetting encoderCandidate;
+    AngleSetting angleCandidate;
+    TofSetting tofCandidate;
+    JoystickSetting joystickCandidate;
+    if ((type == CHAIN_KEY_DEVICE_TYPE && !readKeySetting(i, keyCandidate)) ||
+        (type == CHAIN_ENCODER_DEVICE_TYPE &&
+         !readEncoderSetting(i, encoderCandidate)) ||
+        (type == CHAIN_ANGLE_DEVICE_TYPE &&
+         !readAngleSetting(i, angleCandidate)) ||
+        (type == CHAIN_TOF_DEVICE_TYPE &&
+         !readTofSetting(i, tofCandidate)) ||
+        (type == CHAIN_JOYSTICK_DEVICE_TYPE && !readJoystickSetting(i,joystickCandidate)) ||
+        (type != CHAIN_KEY_DEVICE_TYPE &&
+         type != CHAIN_ENCODER_DEVICE_TYPE &&
+         type != CHAIN_ANGLE_DEVICE_TYPE &&
+         type != CHAIN_TOF_DEVICE_TYPE && type != CHAIN_JOYSTICK_DEVICE_TYPE)) {
       sendActionResult(400, tr("Could not save settings. Check the device fields.", "設定を保存できませんでした。デバイスの設定項目を確認してください。"));
       return;
     }
@@ -738,8 +1462,23 @@ void handleSaveAll() {
     return;
   }
   for (int i = 0; i < count; ++i) {
-    KeySetting candidate;
-    if (!readKeySetting(i, candidate) || !keySettingsSave(candidate)) {
+    const int type = server.arg("device_type_" + String(i)).toInt();
+    bool saved = false;
+    if (type == CHAIN_KEY_DEVICE_TYPE) {
+      KeySetting candidate;
+      saved = readKeySetting(i, candidate) && keySettingsSave(candidate);
+    } else if (type == CHAIN_ENCODER_DEVICE_TYPE) {
+      EncoderSetting candidate;
+      saved = readEncoderSetting(i, candidate) && encoderSettingsSave(candidate);
+    } else if (type == CHAIN_ANGLE_DEVICE_TYPE) {
+      AngleSetting candidate;
+      saved = readAngleSetting(i, candidate) && angleSettingsSave(candidate);
+    } else if (type == CHAIN_TOF_DEVICE_TYPE) {
+      TofSetting candidate;
+      saved = readTofSetting(i, candidate) && tofSettingsSave(candidate);
+    } else if(type==CHAIN_JOYSTICK_DEVICE_TYPE){JoystickSetting candidate;saved=readJoystickSetting(i,candidate)&&joystickSettingsSave(candidate);
+    }
+    if (!saved) {
       sendActionResult(500, tr("Could not write all device settings to storage.", "すべてのデバイス設定をストレージへ書き込めませんでした。"));
       return;
     }
@@ -749,48 +1488,169 @@ void handleSaveAll() {
 
 void handleDeleteDevice() {
   const String identity = server.arg("identity");
-  if (!keySettingsDelete(identity)) {
+  const int type = server.arg("device_type").toInt();
+  const bool deleted = type == CHAIN_ENCODER_DEVICE_TYPE
+                           ? encoderSettingsDelete(identity)
+                       : type == CHAIN_ANGLE_DEVICE_TYPE
+                           ? angleSettingsDelete(identity)
+                       : type == CHAIN_TOF_DEVICE_TYPE
+                           ? tofSettingsDelete(identity)
+                       : type == CHAIN_JOYSTICK_DEVICE_TYPE
+                           ? joystickSettingsDelete(identity)
+                           : keySettingsDelete(identity);
+  if (!deleted) {
     sendActionResult(400, tr("Could not delete device settings.", "デバイス設定を削除できませんでした。"));
     return;
   }
   sendActionResult(200, tr("Device settings deleted.", "デバイス設定を削除しました。"));
 }
 
-KeySetting* requestedConnectedSetting(bool allowBuiltIn) {
-  if (!server.hasArg("index")) return nullptr;
+struct RequestedDevice {
+  KeySetting* key = nullptr;
+  EncoderSetting* encoder = nullptr;
+  AngleSetting* angle = nullptr;
+  TofSetting* tof = nullptr;
+  JoystickSetting* joystick = nullptr;
+};
+
+RequestedDevice requestedConnectedDevice() {
+  RequestedDevice result;
+  if (!server.hasArg("index")) return result;
   const String text = server.arg("index");
   for (size_t index = 0; index < text.length(); ++index)
-    if (!isdigit(static_cast<unsigned char>(text[index]))) return nullptr;
+    if (!isdigit(static_cast<unsigned char>(text[index]))) return result;
   const int requested = text.toInt();
   int cardIndex = 0;
+
+  // Built-in DualKey buttons are rendered first.
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
-    if (!setting || (!setting->builtIn && setting->connectedPortMask == 0)) continue;
-    if (cardIndex++ == requested)
-      return allowBuiltIn || !setting->builtIn ? setting : nullptr;
+    if (!setting || !setting->builtIn) continue;
+    if (cardIndex++ == requested) {
+      result.key = setting;
+      return result;
+    }
   }
-  return nullptr;
+
+  // Chain cards are rendered in physical-port order. Resolve the request by
+  // that same topology so Identify and preset operations target the card the
+  // user actually selected.
+  if (requested < cardIndex) return result;
+  const size_t physicalIndex = static_cast<size_t>(requested - cardIndex);
+  String identity;
+  uint8_t deviceType = 0;
+  if (!chainPortConnectedDeviceAt(physicalIndex, identity, deviceType)) {
+    return result;
+  }
+
+  if (deviceType == 3) {  // Chain Key
+    for (size_t index = 0; index < keySettingsCount(); ++index) {
+      KeySetting* setting = keySettingsAt(index);
+      if (setting && !setting->builtIn && setting->connectedPortMask != 0 &&
+          setting->identity == identity) {
+        result.key = setting;
+        return result;
+      }
+    }
+  } else if (deviceType == 1) {  // Chain Encoder
+    for (size_t index = 0; index < encoderSettingsCount(); ++index) {
+      EncoderSetting* setting = encoderSettingsAt(index);
+      if (setting && setting->connectedPortMask != 0 &&
+          setting->identity == identity) {
+        result.encoder = setting;
+        return result;
+      }
+    }
+  } else if (deviceType == 2) {  // Chain Angle
+    for (size_t index = 0; index < angleSettingsCount(); ++index) {
+      AngleSetting* setting = angleSettingsAt(index);
+      if (setting && setting->connectedPortMask != 0 &&
+          setting->identity == identity) {
+        result.angle = setting;
+        return result;
+      }
+    }
+  } else if (deviceType == 5) {  // Chain ToF
+    for (size_t index = 0; index < tofSettingsCount(); ++index) {
+      TofSetting* setting = tofSettingsAt(index);
+      if (setting && setting->connectedPortMask != 0 &&
+          setting->identity == identity) {
+        result.tof = setting;
+        return result;
+      }
+    }
+  } else if (deviceType == 4) {  // Chain Joystick
+    for (size_t index = 0; index < joystickSettingsCount(); ++index) {
+      JoystickSetting* setting = joystickSettingsAt(index);
+      if (setting && setting->connectedPortMask != 0 &&
+          setting->identity == identity) {
+        result.joystick = setting;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
+void handleIdentifyDevice() {
+  RequestedDevice selected = requestedConnectedDevice();
+  String identity;
+  if (selected.key) identity = selected.key->identity;
+  else if (selected.encoder) identity = selected.encoder->identity;
+  else if (selected.angle) identity = selected.angle->identity;
+  else if (selected.tof) identity = selected.tof->identity;
+  else if (selected.joystick) identity = selected.joystick->identity;
+  if (identity.isEmpty()) {
+    server.send(404, "text/plain; charset=utf-8",
+                tr("The selected connected device was not found.",
+                   "選択した接続済みデバイスが見つかりません。"));
+    return;
+  }
+  const bool changed = identity.startsWith("dualkey:")
+                           ? dualKeyIdentifyDevice(identity)
+                           : chainPortIdentifyDevice(identity);
+  if (!changed) {
+    server.send(502, "text/plain; charset=utf-8",
+                tr("The device LED could not be changed.",
+                   "デバイスのLEDを変更できませんでした。"));
+    return;
+  }
+  server.send(200, "text/plain; charset=utf-8",
+              tr("Orange LED active for 10 seconds.",
+                 "LEDを10秒間オレンジ色に点灯します。"));
 }
 
 void handleExportDevicePreset() {
-  KeySetting* setting = requestedConnectedSetting(true);
-  if (!setting) {
+  RequestedDevice selected = requestedConnectedDevice();
+  if (!selected.key && !selected.encoder && !selected.angle && !selected.tof && !selected.joystick) {
     server.send(404, "text/plain; charset=utf-8",
-                tr("The selected connected Key was not found.", "選択した接続済みKeyが見つかりません。"));
+                tr("The selected connected device was not found.", "選択した接続済みデバイスが見つかりません。"));
     return;
   }
-  server.sendHeader("Content-Disposition",
-                    "attachment; filename=\"ChainOSC-Key-preset.json\"");
+  const bool encoder = selected.encoder != nullptr;
+  const bool angle = selected.angle != nullptr;
+  const bool tof = selected.tof != nullptr;
+  const bool joystick = selected.joystick != nullptr;
+  server.sendHeader("Content-Disposition", encoder
+      ? "attachment; filename=\"ChainOSC-Encoder-preset.json\""
+      : angle ? "attachment; filename=\"ChainOSC-Angle-preset.json\""
+      : tof ? "attachment; filename=\"ChainOSC-ToF-preset.json\""
+      : joystick ? "attachment; filename=\"ChainOSC-Joystick-preset.json\""
+              : "attachment; filename=\"ChainOSC-Key-preset.json\"");
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8",
-              keySettingJson(*setting, false));
+              encoder ? encoderSettingJson(*selected.encoder, false)
+              : angle ? angleSettingJson(*selected.angle, false)
+              : tof ? tofSettingJson(*selected.tof, false)
+              : joystick ? joystickSettingJson(*selected.joystick, false)
+                      : keySettingJson(*selected.key, false));
 }
 
 void handleImportDevicePreset() {
-  KeySetting* current = requestedConnectedSetting(true);
-  if (!current) {
+  RequestedDevice selected = requestedConnectedDevice();
+  if (!selected.key && !selected.encoder && !selected.angle && !selected.tof && !selected.joystick) {
     server.send(404, "text/plain; charset=utf-8",
-                tr("The selected connected Key was not found.", "選択した接続済みKeyが見つかりません。"));
+                tr("The selected connected device was not found.", "選択した接続済みデバイスが見つかりません。"));
     return;
   }
   String body = server.arg("plain");
@@ -824,17 +1684,50 @@ void handleImportDevicePreset() {
     server.send(400, "text/plain; charset=utf-8", tr("Unsupported or missing preset schemaVersion.", "プリセットのschemaVersionがないか、対応していません。"));
     return;
   }
-  KeySetting candidate = *current;
   String error;
-  if (!keySettingFromJson(root, candidate, false, error)) {
-    server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
-    return;
+  bool saved = false;
+  if (selected.encoder) {
+    EncoderSetting candidate = *selected.encoder;
+    if (!encoderSettingFromJson(root, candidate, false, error)) {
+      server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
+      return;
+    }
+    saved = encoderSettingsSave(candidate);
+  } else if (selected.angle) {
+    AngleSetting candidate = *selected.angle;
+    if (!angleSettingFromJson(root, candidate, false, error)) {
+      server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
+      return;
+    }
+    saved = angleSettingsSave(candidate);
+  } else if (selected.tof) {
+    TofSetting candidate = *selected.tof;
+    if (!tofSettingFromJson(root, candidate, false, error)) {
+      server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error); return;
+    }
+    saved = tofSettingsSave(candidate);
+  } else if(selected.joystick){JoystickSetting candidate=*selected.joystick;if(!joystickSettingFromJson(root,candidate,false,error)){server.send(400,"text/plain; charset=utf-8",String(tr("Invalid preset: ","プリセットが正しくありません: "))+error);return;}saved=joystickSettingsSave(candidate);
+  } else {
+    KeySetting candidate = *selected.key;
+    if (!keySettingFromJson(root, candidate, false, error)) {
+      server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
+      return;
+    }
+    saved = keySettingsSave(candidate);
   }
-  if (!keySettingsSave(candidate)) {
+  if (!saved) {
     server.send(507, "text/plain; charset=utf-8", tr("The preset could not be written to storage.", "プリセットをストレージへ書き込めませんでした。"));
     return;
   }
-  server.send(200, "text/plain; charset=utf-8", tr("Key preset imported.", "Keyプリセットをインポートしました。"));
+  server.send(200, "text/plain; charset=utf-8", selected.encoder
+      ? tr("Encoder preset imported.", "Encoderプリセットをインポートしました。")
+      : selected.angle
+          ? tr("Angle preset imported.", "Angleプリセットをインポートしました。")
+      : selected.tof
+          ? tr("ToF preset imported.", "ToFプリセットをインポートしました。")
+      : selected.joystick
+          ? tr("Joystick preset imported.", "Joystickプリセットをインポートしました。")
+          : tr("Key preset imported.", "Keyプリセットをインポートしました。"));
 }
 
 void handleExportSettings() {
@@ -850,12 +1743,36 @@ void handleExportSettings() {
                   String(oscTargetPort()) + ",\"uiLanguage\":" +
                   jsonString(isJapaneseUi() ? "ja" : "en") + "},\"devices\":[";
   server.sendContent(header);
+  bool firstDevice = true;
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
     if (!setting) continue;
-    String chunk = index ? "," : "";
+    String chunk = firstDevice ? "" : ",";
     chunk += keySettingJson(*setting, true);
     server.sendContent(chunk);
+    firstDevice = false;
+  }
+  for(size_t index=0;index<joystickSettingsCount();++index){JoystickSetting* setting=joystickSettingsAt(index);if(!setting)continue;String chunk=firstDevice?"":",";chunk+=joystickSettingJson(*setting,true);server.sendContent(chunk);firstDevice=false;}
+  for (size_t index = 0; index < tofSettingsCount(); ++index) {
+    TofSetting* setting = tofSettingsAt(index); if (!setting) continue;
+    String chunk = firstDevice ? "" : ","; chunk += tofSettingJson(*setting, true);
+    server.sendContent(chunk); firstDevice = false;
+  }
+  for (size_t index = 0; index < angleSettingsCount(); ++index) {
+    AngleSetting* setting = angleSettingsAt(index);
+    if (!setting) continue;
+    String chunk = firstDevice ? "" : ",";
+    chunk += angleSettingJson(*setting, true);
+    server.sendContent(chunk);
+    firstDevice = false;
+  }
+  for (size_t index = 0; index < encoderSettingsCount(); ++index) {
+    EncoderSetting* setting = encoderSettingsAt(index);
+    if (!setting) continue;
+    String chunk = firstDevice ? "" : ",";
+    chunk += encoderSettingJson(*setting, true);
+    server.sendContent(chunk);
+    firstDevice = false;
   }
   server.sendContent("]}");
   server.sendContent("");
@@ -918,17 +1835,38 @@ void handleImportSettings() {
   }
 
   for (size_t index = 0; index < devices.size(); ++index) {
-    KeySetting candidate;
     String error;
-    if (!keySettingFromJson(devices[index].as<JsonObjectConst>(), candidate, true, error)) {
+    JsonObjectConst object = devices[index].as<JsonObjectConst>();
+    const int type = object["deviceType"] | -1;
+    String identity;
+    bool validDevice = false;
+    if (type == CHAIN_KEY_DEVICE_TYPE) {
+      KeySetting candidate;
+      validDevice = keySettingFromJson(object, candidate, true, error);
+      identity = candidate.identity;
+    } else if (type == CHAIN_ENCODER_DEVICE_TYPE) {
+      EncoderSetting candidate;
+      validDevice = encoderSettingFromJson(object, candidate, true, error);
+      identity = candidate.identity;
+    } else if (type == CHAIN_ANGLE_DEVICE_TYPE) {
+      AngleSetting candidate;
+      validDevice = angleSettingFromJson(object, candidate, true, error);
+      identity = candidate.identity;
+    } else if (type == CHAIN_TOF_DEVICE_TYPE) {
+      TofSetting candidate; validDevice = tofSettingFromJson(object, candidate, true, error); identity = candidate.identity;
+    } else if(type==CHAIN_JOYSTICK_DEVICE_TYPE){JoystickSetting candidate;validDevice=joystickSettingFromJson(object,candidate,true,error);identity=candidate.identity;
+    } else {
+      error = tr("Unsupported device type.", "対応していないデバイス種類です。");
+    }
+    if (!validDevice) {
       server.send(400, "text/plain; charset=utf-8", String(tr("Device ", "デバイス ")) + String(index + 1) + ": " + error);
       return;
     }
     for (size_t previous = 0; previous < index; ++previous) {
       JsonObjectConst previousObject = devices[previous].as<JsonObjectConst>();
       if (previousObject["identity"].is<const char*>() &&
-          String(previousObject["identity"].as<const char*>()) == candidate.identity) {
-        server.send(400, "text/plain; charset=utf-8", String(tr("Duplicate device identity: ", "デバイス識別子が重複しています: ")) + candidate.identity);
+          String(previousObject["identity"].as<const char*>()) == identity) {
+        server.send(400, "text/plain; charset=utf-8", String(tr("Duplicate device identity: ", "デバイス識別子が重複しています: ")) + identity);
         return;
       }
     }
@@ -939,22 +1877,54 @@ void handleImportSettings() {
     return;
   }
   for (size_t index = 0; index < devices.size(); ++index) {
-    KeySetting candidate;
     String error;
-    if (!keySettingFromJson(devices[index].as<JsonObjectConst>(), candidate, true, error)) {
-      server.send(400, "text/plain; charset=utf-8", error);
-      return;
+    JsonObjectConst object = devices[index].as<JsonObjectConst>();
+    const int type = object["deviceType"] | -1;
+    bool saved = false;
+    if (type == CHAIN_KEY_DEVICE_TYPE) {
+      KeySetting candidate;
+      if (!keySettingFromJson(object, candidate, true, error)) {
+        server.send(400, "text/plain; charset=utf-8", error); return;
+      }
+      KeySetting* destination = keySettingsEnsure(
+          candidate.identity, candidate.displayName,
+          candidate.sequence.address.length() ? candidate.sequence.address
+                                               : "/chainoscmini/imported");
+      if (destination) {
+        candidate.connectedPortMask = destination->connectedPortMask;
+        candidate.builtIn = destination->builtIn;
+        saved = keySettingsSave(candidate);
+      }
+    } else if (type == CHAIN_ENCODER_DEVICE_TYPE) {
+      EncoderSetting candidate;
+      if (!encoderSettingFromJson(object, candidate, true, error)) {
+        server.send(400, "text/plain; charset=utf-8", error); return;
+      }
+      EncoderSetting* destination =
+          encoderSettingsEnsure(candidate.identity, candidate.displayName);
+      if (destination) {
+        candidate.connectedPortMask = destination->connectedPortMask;
+        saved = encoderSettingsSave(candidate);
+      }
+    } else if (type == CHAIN_ANGLE_DEVICE_TYPE) {
+      AngleSetting candidate;
+      if (!angleSettingFromJson(object, candidate, true, error)) {
+        server.send(400, "text/plain; charset=utf-8", error); return;
+      }
+      AngleSetting* destination =
+          angleSettingsEnsure(candidate.identity, candidate.displayName);
+      if (destination) {
+        candidate.connectedPortMask = destination->connectedPortMask;
+        saved = angleSettingsSave(candidate);
+      }
+    } else if (type == CHAIN_TOF_DEVICE_TYPE) {
+      TofSetting candidate;
+      if (!tofSettingFromJson(object, candidate, true, error)) { server.send(400, "text/plain; charset=utf-8", error); return; }
+      TofSetting* destination = tofSettingsEnsure(candidate.identity, candidate.displayName);
+      if (destination) { candidate.connectedPortMask = destination->connectedPortMask; saved = tofSettingsSave(candidate); }
+    } else if(type==CHAIN_JOYSTICK_DEVICE_TYPE){JoystickSetting candidate;if(!joystickSettingFromJson(object,candidate,true,error)){server.send(400,"text/plain; charset=utf-8",error);return;}JoystickSetting* destination=joystickSettingsEnsure(candidate.identity,candidate.displayName);if(destination){candidate.connectedPortMask=destination->connectedPortMask;saved=joystickSettingsSave(candidate);}
     }
-    KeySetting* destination = keySettingsEnsure(
-        candidate.identity, candidate.displayName,
-        candidate.sequence.address.length() ? candidate.sequence.address : "/chainoscmini/imported");
-    if (!destination) {
-      server.send(507, "text/plain; charset=utf-8", tr("There is no space for another device setting.", "デバイス設定を追加する空きがありません。"));
-      return;
-    }
-    candidate.connectedPortMask = destination->connectedPortMask;
-    candidate.builtIn = destination->builtIn;
-    if (!keySettingsSave(candidate)) {
+    if (!saved) {
       server.send(507, "text/plain; charset=utf-8", String(tr("Storage write failed at device ", "デバイス設定の書き込みに失敗しました: ")) + String(index + 1));
       return;
     }
@@ -1192,6 +2162,7 @@ void registerRoutes() {
   server.on("/import_settings", HTTP_POST, handleImportSettings);
   server.on("/export_device_preset", HTTP_GET, handleExportDevicePreset);
   server.on("/import_device_preset", HTTP_POST, handleImportDevicePreset);
+  server.on("/identify_device", HTTP_POST, handleIdentifyDevice);
   server.on("/generate_204", HTTP_ANY, handleRoot);
   server.on("/hotspot-detect.html", HTTP_ANY, handleRoot);
   server.on("/ncsi.txt", HTTP_ANY, handleRoot);

@@ -55,6 +55,9 @@ Action Menu → Options → OSC → Enabled
 
 Use `ipconfig` to find the VRChat computer's IPv4 address. Open `http://chainoscmini.local/`, enter that address under `OSC Target`, and set the port to `9000`. If the `.local` address does not open, start PowerShell, run `Resolve-DnsName chainoscmini.local`, and open the reported ChainOSCmini IP address directly in the browser.
 
+> [!IMPORTANT]
+> The Web UI does not require authentication. Use ChainOSCmini only on a trusted local network, such as your home LAN. Use on shared networks at event venues, hotels, or public Wi-Fi hotspots is not recommended.
+
 ## 6. Import a Key preset
 
 Download a Key JSON file from [M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key). ChainOSCmini and M5ChainOSC use the same Key preset format.

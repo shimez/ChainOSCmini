@@ -29,6 +29,12 @@ DebouncedKey keys[] = {
 NetworkLedState networkLedState = NetworkLedState::CONNECTING;
 bool ledsReady = false;
 unsigned long lastAnimationMs = 0;
+unsigned long identifyUntilMs[LED_COUNT] = {0, 0};
+
+bool identifyActive(size_t index, unsigned long now) {
+  return identifyUntilMs[index] != 0 &&
+         static_cast<long>(identifyUntilMs[index] - now) > 0;
+}
 
 uint8_t pulseLevel(unsigned long now, uint8_t minimum, uint8_t maximum) {
   constexpr unsigned long kPulsePeriodMs = 2000;
@@ -60,9 +66,11 @@ uint32_t pressedColor() {
 void renderLeds(unsigned long now) {
   const uint32_t background = networkColor(now);
   for (size_t index = 0; index < LED_COUNT; ++index) {
-    keyLeds.setPixelColor(KEY_LED_INDEX[index],
-                          keys[index].stablePressed ? pressedColor()
-                                                    : background);
+    keyLeds.setPixelColor(
+        KEY_LED_INDEX[index],
+        identifyActive(index, now) ? pressedColor()
+                                   : keys[index].stablePressed ? pressedColor()
+                                                               : background);
   }
   keyLeds.show();
 }
@@ -120,6 +128,14 @@ void dualKeyHardwareUpdate() {
   const unsigned long now = millis();
   updateKey(0, now);
   updateKey(1, now);
+  bool identifyExpired = false;
+  for (size_t index = 0; index < LED_COUNT; ++index) {
+    if (identifyUntilMs[index] != 0 && !identifyActive(index, now)) {
+      identifyUntilMs[index] = 0;
+      identifyExpired = true;
+    }
+  }
+  if (identifyExpired) renderLeds(now);
   if (networkLedState != NetworkLedState::CONNECTED &&
       now - lastAnimationMs >= 50) {
     lastAnimationMs = now;
@@ -131,4 +147,14 @@ void dualKeySetNetworkLedState(NetworkLedState state) {
   if (networkLedState == state) return;
   networkLedState = state;
   if (ledsReady) renderLeds(millis());
+}
+
+bool dualKeyIdentifyDevice(const String& identity) {
+  size_t index = LED_COUNT;
+  if (identity == "dualkey:1") index = 0;
+  else if (identity == "dualkey:2") index = 1;
+  if (index >= LED_COUNT || !ledsReady) return false;
+  identifyUntilMs[index] = millis() + 10000UL;
+  renderLeds(millis());
+  return true;
 }
