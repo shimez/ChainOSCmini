@@ -2,6 +2,8 @@
 
 Chain DualKey上で動作するOSCコントローラーを目指す、開発中の非公式プロジェクトです。
 
+[ChainOSCシリーズポータル](https://shimez.github.io/ChainOSC/)
+
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
