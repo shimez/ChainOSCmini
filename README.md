@@ -1,6 +1,8 @@
 # ChainOSCmini
 
-Chain DualKey上で動作するOSCコントローラーを目指す、開発中の非公式プロジェクトです。
+M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM5Stack Chainデバイスの操作をOSCメッセージとして送信するファームウェアです。ブラウザーから送信先やデバイスごとの動作を設定でき、設定はDualKey本体のキーまたはChainデバイスのUID単位で本体へ保存されます。
+
+主にVRChatのアバターパラメーター操作を想定していますが、OSCを受信できるアプリケーションで利用できます。
 
 [ChainOSCシリーズポータル](https://shimez.github.io/ChainOSC/)
 
@@ -160,6 +162,10 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - その他のChainデバイスへの対応
 - M5ChainOSCとの機能・UI・プリセット互換性の継続的な改善
 
-## License
+## ライセンス
 
-このプロジェクトの独自コードは[MIT License](LICENSE)で公開します。
+特に明記がない限り、ChainOSCminiの独自ソースコードおよびドキュメントは[MIT License](LICENSE)で提供されます。
+
+Web Installerなどで配布するコンパイル済みファームウェアには、LGPL-2.1、LGPL-3.0、MITなど、各ライセンスで提供される第三者コンポーネントが含まれます。使用コンポーネント、バージョン、著作権表示および対応ソースへのリンクは[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を参照してください。Arduino-ESP32に適用されるLGPL-2.1の本文は[licenses/LGPL-2.1.txt](licenses/LGPL-2.1.txt)、Adafruit NeoPixelに適用されるLGPL-3.0の本文は[licenses/LGPL-3.0.txt](licenses/LGPL-3.0.txt)に収録しています。
+
+ChainOSCminiは個人開発の非公式プロジェクトです。MITライセンスは、M5Stack Technology Co., Ltd.、Adafruit Industriesその他の第三者の商標使用を許諾するものではありません。
