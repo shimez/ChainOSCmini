@@ -74,7 +74,7 @@ http://192.168.x.x/
 
 ### Settings Backup & Restore／設定のバックアップと復元
 
-- `Export Settings (JSON)`: OSC送信先、UI言語、本体キー、保存済みChain Keyをエクスポートします。
+- `Export Settings (JSON)`: OSC送信先、UI言語、本体キー、保存済みChain Key／Encoder／Angle／ToF／Joystickをエクスポートします。
 - `Import Settings (JSON)`: ChainOSCmini全体設定JSONを復元します。
 
 JSONには`ChainOSCmini-settings`、schemaVersion、保存時のファームウェアバージョンが記録されます。Wi-FiのSSIDとパスワードは含まれません。

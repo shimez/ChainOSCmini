@@ -50,7 +50,7 @@ If the `.local` address does not open on Windows, start PowerShell and run the c
 - `Language`: selects English or Japanese.
 - `System`: shows firmware version, IP address, and mDNS address.
 - `WiFi`: shows the IP and can erase saved Wi-Fi credentials.
-- `Settings Backup & Restore`: exports or imports OSC target, UI language, built-in keys, and saved Chain Keys. Wi-Fi credentials are excluded.
+- `Settings Backup & Restore`: exports or imports the OSC target, UI language, built-in keys, and saved Chain Key, Encoder, Angle, ToF, and Joystick settings. Wi-Fi credentials are excluded.
 - `OSC Target`: enter the receiver host/IP and UDP port. VRChat normally uses port `9000`.
 - `Save All Settings`: saves the OSC target and all connected Key settings.
 
@@ -146,7 +146,14 @@ For example, Out Min `-1` and Out Max `1` produce approximately `0` at center an
 
 Joystick Click supports the same Press / Release, eight-message limit, and Sequence behavior as Key. Joystick presets remain compatible with M5ChainOSC.
 
-## 10. Device presets
+## 10. OSC input rules
+
+- An OSC Address must begin with `/` and may contain up to 192 bytes.
+- Spaces and the characters `# * , ? [ ] { }` cannot be used in an OSC Address.
+- A Value may contain up to 128 bytes.
+- Float and Int values must contain a number that can be interpreted as the selected type.
+
+## 11. Device presets
 
 Open `…` in the upper-right corner of any Key, Encoder, Angle, ToF, or Joystick card.
 
@@ -155,22 +162,22 @@ Open `…` in the upper-right corner of any Key, Encoder, Angle, ToF, or Joystic
 
 The shared format is `ChainOSC-device-preset`, compatible with M5ChainOSC Key, Encoder, Angle, ToF, and Joystick presets. The legacy `M5ChainOSC-device-preset` format is also accepted.
 
-## 11. Saved devices
+## 12. Saved devices
 
 Chain Key, Encoder, Angle, ToF, and Joystick settings are stored per UID and survive reconnection, port changes, and device-order changes. Disconnected saved devices appear under `Saved Device Settings`; use `Delete Settings` to remove their stored configuration.
 
-## 12. JSON backup
+## 13. JSON backup
 
-Full backups use `ChainOSCmini-settings` and include schema and firmware versions. They contain the OSC target, UI language, built-in keys, and saved Chain Keys, but never Wi-Fi credentials.
+Full backups use `ChainOSCmini-settings` and include schema and firmware versions. They contain the OSC target, UI language, built-in keys, and saved Chain Key, Encoder, Angle, ToF, and Joystick settings, but never Wi-Fi credentials.
 
 Invalid JSON, wrong formats, unsupported device types, invalid OSC values, and more than eight messages are rejected without applying the preset.
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 - If the UI does not open on Windows, run `Resolve-DnsName chainoscmini.local` in PowerShell and open the reported IP address.
 - If OSC is not received, check receiver IP, port, firewall, and VRChat OSC status.
 - If JSON import fails, confirm that a full backup is selected in the full-settings importer and a device preset in a Key's `…` menu.
 
-## 14. Current scope
+## 15. Current scope
 
 The built-in DualKey buttons, Chain Key, Chain Encoder, Chain Angle, Chain ToF, and Chain Joystick are supported. Other Chain devices are planned for later versions.
