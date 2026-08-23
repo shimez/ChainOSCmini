@@ -6,6 +6,12 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Changed
+
+- OSC送信先の表記をM5ChainOSC、ChainOSCnanoと共通化
+
 ## [1.0.0]
 
 ### Added
@@ -130,7 +136,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.1
 [1.0.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.0
 [0.9.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.9.1
 [0.9.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.9.0

@@ -9,6 +9,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
+## Version 1.0.1
+
+OSC送信先の表記をほかのChainOSCシリーズと統一したメンテナンスリリースです。
+
 ## Version 1.0.0
 
 ChainOSCminiとして予定していた基本機能を備えた最初の安定版です。M5ChainOSCとの設定・プリセット互換性を重視しています。
