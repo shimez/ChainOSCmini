@@ -866,29 +866,60 @@ void appendEncoderCard(String& html, const EncoderSetting& setting,
   html += "<div><label>" + String(tr("Step", "増減量")) + "</label><input type='number' step='any' required name='seq_step_" + idx + "' value='" + String(setting.clickSequence.step, 7) + "'></div><div><label>" + String(tr("Type", "型")) + "</label>" + typeSelectHtml("seq_type_" + idx, setting.clickSequence.valueType) + "</div></div></div></div></div></div>";
 }
 
+String savedDeviceStatusBadge(uint8_t connectedPortMask) {
+  if (connectedPortMask != 0) {
+    return String(F(" <span class='badge badge-on'>")) +
+           tr("Connected", "接続済み") + F("</span>");
+  }
+  return String(F(" <span class='badge badge-off'>")) +
+         tr("Not Connected", "未接続") + F("</span>");
+}
+
+String savedDeviceDeleteForm(const String& identity, int deviceType,
+                             uint8_t connectedPortMask) {
+  if (connectedPortMask != 0) return String();
+  String html = F("<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='");
+  html += htmlEscape(identity);
+  html += F("'>");
+  if (deviceType != CHAIN_KEY_DEVICE_TYPE) {
+    html += F("<input type='hidden' name='device_type' value='");
+    html += deviceType;
+    html += F("'>");
+  }
+  html += F("<button class='btn-warning' type='submit'>");
+  html += tr("Delete Settings", "設定を削除");
+  html += F("</button></form>");
+  return html;
+}
+
 void appendSavedDeviceCard(String& html, const KeySetting& setting) {
   String uid = setting.identity.startsWith("chain:")
                    ? setting.identity.substring(6) : setting.identity;
   html += F("<div class='card saved-device-card'><h2><span class='badge badge-type'>Key</span> ");
   html += htmlEscape(setting.displayName);
-  html += F(" <span class='badge badge-off'>");
-  html += tr("Not Connected", "未接続");
-  html += F("</span></h2><p class='meta'>");
+  html += savedDeviceStatusBadge(setting.connectedPortMask);
+  html += F("</h2><p class='meta'>");
   html += tr("Type: ", "種類: ");
   html += F("<strong>Key</strong></p><div class='uid'>");
   html += htmlEscape(uid);
-  html += F("</div><form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='");
-  html += htmlEscape(setting.identity);
-  html += F("'><button class='btn-warning' type='submit'>");
-  html += tr("Delete Settings", "設定を削除");
-  html += F("</button></form></div>");
+  html += F("</div>");
+  if (setting.connectedPortMask == 0) {
+    html += F("<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='");
+    html += htmlEscape(setting.identity);
+    html += F("'><button class='btn-warning' type='submit'>");
+    html += tr("Delete Settings", "設定を削除");
+    html += F("</button></form>");
+  }
+  html += F("</div>");
 }
 
 void appendSavedEncoderCard(String& html, const EncoderSetting& setting) {
   const String uid = setting.identity.startsWith("chain:")
                          ? setting.identity.substring(6) : setting.identity;
-  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Encoder</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Encoder</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
-  html += "<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='1'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Encoder</span> " + htmlEscape(setting.displayName) + savedDeviceStatusBadge(setting.connectedPortMask) + "</h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Encoder</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
+  html += savedDeviceDeleteForm(setting.identity, CHAIN_ENCODER_DEVICE_TYPE,
+                                setting.connectedPortMask);
+  html += F("</div>");
 }
 
 void appendAngleCard(String& html, const AngleSetting& setting,
@@ -915,8 +946,10 @@ void appendAngleCard(String& html, const AngleSetting& setting,
 void appendSavedAngleCard(String& html, const AngleSetting& setting) {
   const String uid = setting.identity.startsWith("chain:")
                          ? setting.identity.substring(6) : setting.identity;
-  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Angle</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Angle</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
-  html += "<form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='2'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Angle</span> " + htmlEscape(setting.displayName) + savedDeviceStatusBadge(setting.connectedPortMask) + "</h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>Angle</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
+  html += savedDeviceDeleteForm(setting.identity, CHAIN_ANGLE_DEVICE_TYPE,
+                                setting.connectedPortMask);
+  html += F("</div>");
 }
 
 void appendTofCard(String& html, const TofSetting& setting, size_t cardIndex) {
@@ -936,7 +969,10 @@ void appendTofCard(String& html, const TofSetting& setting, size_t cardIndex) {
 
 void appendSavedTofCard(String& html, const TofSetting& setting) {
   const String uid = setting.identity.startsWith("chain:") ? setting.identity.substring(6) : setting.identity;
-  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>ToF</span> " + htmlEscape(setting.displayName) + " <span class='badge badge-off'>" + String(tr("Not Connected", "未接続")) + "</span></h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>ToF</strong></p><div class='uid'>" + htmlEscape(uid) + "</div><form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='" + htmlEscape(setting.identity) + "'><input type='hidden' name='device_type' value='5'><button class='btn-warning' type='submit'>" + tr("Delete Settings", "設定を削除") + "</button></form></div>";
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>ToF</span> " + htmlEscape(setting.displayName) + savedDeviceStatusBadge(setting.connectedPortMask) + "</h2><p class='meta'>" + tr("Type: ", "種類: ") + "<strong>ToF</strong></p><div class='uid'>" + htmlEscape(uid) + "</div>";
+  html += savedDeviceDeleteForm(setting.identity, CHAIN_TOF_DEVICE_TYPE,
+                                setting.connectedPortMask);
+  html += F("</div>");
 }
 
 void appendJoystickCard(String& html, const JoystickSetting& setting, size_t cardIndex) {
@@ -953,7 +989,19 @@ void appendJoystickCard(String& html, const JoystickSetting& setting, size_t car
   html+="<div id='seq-"+idx+"' class='sequence-card' style='display:"+String(setting.clickMode==MODE_SEQUENCE?"block":"none")+"'><h3>"+String(tr("Click Sequence","クリックシーケンス"))+"</h3><div class='seq-grid'><div class='address-field seq-address'><label>"+String(tr("OSC Address","OSCアドレス"))+"</label><input class='osc-address' maxlength='192' required name='seq_address_"+idx+"' value='"+htmlEscape(setting.clickSequence.address)+"' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div><div><label>"+tr("Start","開始値")+"</label><input type='number' step='any' name='seq_start_"+idx+"' value='"+String(setting.clickSequence.start,7)+"'></div><div><label>"+tr("End","終了値")+"</label><input type='number' step='any' name='seq_end_"+idx+"' value='"+String(setting.clickSequence.end,7)+"'></div><div><label>"+tr("Step","増減量")+"</label><input type='number' step='any' name='seq_step_"+idx+"' value='"+String(setting.clickSequence.step,7)+"'></div><div><label>"+tr("Type","型")+"</label>"+typeSelectHtml("seq_type_"+idx,setting.clickSequence.valueType)+"</div></div></div></div></div></div>";
 }
 
-void appendSavedJoystickCard(String& html,const JoystickSetting& setting){const String uid=setting.identity.startsWith("chain:")?setting.identity.substring(6):setting.identity;html+="<div class='card saved-device-card'><h2><span class='badge badge-type'>Joystick</span> "+htmlEscape(setting.displayName)+" <span class='badge badge-off'>"+tr("Not Connected","未接続")+"</span></h2><p class='meta'>"+tr("Type: ","種類: ")+"<strong>Joystick</strong></p><div class='uid'>"+htmlEscape(uid)+"</div><form method='post' action='/delete_device' onsubmit='deleteSavedDevice(event,this);return false'><input type='hidden' name='identity' value='"+htmlEscape(setting.identity)+"'><input type='hidden' name='device_type' value='4'><button class='btn-warning' type='submit'>"+tr("Delete Settings","設定を削除")+"</button></form></div>";}
+void appendSavedJoystickCard(String& html, const JoystickSetting& setting) {
+  const String uid = setting.identity.startsWith("chain:")
+                         ? setting.identity.substring(6) : setting.identity;
+  html += "<div class='card saved-device-card'><h2><span class='badge badge-type'>Joystick</span> " +
+          htmlEscape(setting.displayName) +
+          savedDeviceStatusBadge(setting.connectedPortMask) +
+          "</h2><p class='meta'>" + tr("Type: ", "種類: ") +
+          "<strong>Joystick</strong></p><div class='uid'>" +
+          htmlEscape(uid) + "</div>";
+  html += savedDeviceDeleteForm(setting.identity, CHAIN_JOYSTICK_DEVICE_TYPE,
+                                setting.connectedPortMask);
+  html += F("</div>");
+}
 
 void sendStatusPage(const String& message = String()) {
 #if CHAINOSCMINI_WEB_PERF_DEBUG
@@ -1001,8 +1049,8 @@ void sendStatusPage(const String& message = String()) {
     html += htmlEscape(message);
     html += F("</p>");
   }
-  html += F("<form id='settings-form' method='post' action='/save-all' onsubmit='saveSettings(event);return false'><div class='card'><h2>"); html += tr("OSC Target", "OSC送信先"); html += F("</h2>");
-  html += F("<label for='osc_host'>"); html += tr("Host or IP address", "ホスト名またはIPアドレス"); html += F("</label>");
+  html += F("<form id='settings-form' method='post' action='/save-all' onsubmit='saveSettings(event);return false'><div class='card'><h2>"); html += tr("OSC Destination", "OSC送信先"); html += F("</h2>");
+  html += F("<label for='osc_host'>"); html += tr("Hostname or IPv4 address", "ホスト名またはIPv4アドレス"); html += F("</label>");
   html += F("<input id='osc_host' name='osc_host' maxlength='253' required value='");
   html += htmlEscape(oscTargetHost());
   html += F("'>");
@@ -1130,41 +1178,40 @@ void sendStatusPage(const String& message = String()) {
   html += F("<div class='card saved-settings'><h2>");
   html += tr("Saved Device Settings", "保存済みデバイス設定");
   html += F("</h2><p class='note'>");
-  html += tr("Only saved devices that are not currently connected are shown.", "設定が保存されており、現在は接続されていないデバイスだけを表示します。");
+  html += tr("Only devices whose settings have been saved are shown.", "設定を保存したデバイスのみ表示します。");
   html += F("</p></div>");
   if (!flushHtml("SAVED_HEADER_SENT")) return;
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
-    if (setting != nullptr && !setting->builtIn &&
-        setting->connectedPortMask == 0) {
+    if (setting != nullptr && !setting->builtIn) {
       appendSavedDeviceCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < encoderSettingsCount(); ++index) {
     EncoderSetting* setting = encoderSettingsAt(index);
-    if (setting != nullptr && setting->connectedPortMask == 0) {
+    if (setting != nullptr) {
       appendSavedEncoderCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < angleSettingsCount(); ++index) {
     AngleSetting* setting = angleSettingsAt(index);
-    if (setting != nullptr && setting->connectedPortMask == 0) {
+    if (setting != nullptr) {
       appendSavedAngleCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < tofSettingsCount(); ++index) {
     TofSetting* setting = tofSettingsAt(index);
-    if (setting != nullptr && setting->connectedPortMask == 0) {
+    if (setting != nullptr) {
       appendSavedTofCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < joystickSettingsCount(); ++index) {
     JoystickSetting* setting = joystickSettingsAt(index);
-    if (setting && setting->connectedPortMask == 0) {
+    if (setting) {
       appendSavedJoystickCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
