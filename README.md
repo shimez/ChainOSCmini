@@ -1,5 +1,9 @@
 # ChainOSCmini
 
+このプロジェクトのソフトウェア、Webサイト、ドキュメントは、OpenAI Codexとの協働により制作されています。
+
+This project's software, website, and documentation are created in collaboration with OpenAI Codex.
+
 M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM5Stack Chainデバイスの操作をOSCメッセージとして送信するファームウェアです。ブラウザーから送信先やデバイスごとの動作を設定でき、設定はDualKey本体のキーまたはChainデバイスのUID単位で本体へ保存されます。
 
 主にVRChatのアバターパラメーター操作を想定していますが、OSCを受信できるアプリケーションで利用できます。
