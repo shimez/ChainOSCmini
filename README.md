@@ -13,6 +13,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
+## Version 1.1.1
+
+PlatformIOおよびGitHub Actionsで生成するファームウェアのUSB CDCを起動時から有効化し、Web Installer版でもUSBシリアルログを確認できるようにしたメンテナンスリリースです。
+
 ## Version 1.1.0
 
 デバイス設定の保存先をNVSからLittleFSへ移行しました。保存済みの旧NVS設定は初回読込時にLittleFSへ自動移行されます。UID全体をファイル名に使用し、本体キーは`Key1.json`／`Key2.json`として保存します。保存時のファイルサイズとLittleFSの使用量・空き容量はシリアルログで確認できます。

@@ -6,6 +6,12 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.1.1]
+
+### Fixed
+
+- PlatformIOおよびGitHub Actionsで生成するファームウェアのUSB CDCを起動時から有効化し、Web Installer版でもUSBシリアルログを確認できるよう修正
+
 ## [1.1.0]
 
 ### Added
@@ -155,7 +161,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/shimez/ChainOSCmini/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.1.0
 [1.0.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.1
 [1.0.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.0
