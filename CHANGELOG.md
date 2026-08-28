@@ -6,6 +6,25 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+
+- デバイス設定ファイルのサイズとLittleFSの総容量・使用量・空き容量をシリアルログへ出力
+- 一時ファイルのJSON解析とヘッダー検証を行ってから既存設定を置換する安全な保存処理を追加
+
+### Changed
+
+- Key、Encoder、Angle、ToF、Joystickの設定保存先をNVSからLittleFSへ移行
+- ChainデバイスはUID全体、本体キーは`Key1`／`Key2`を設定ファイル名として使用
+- 保存済みデバイスの復元をNVSの`known`一覧ではなくLittleFS上のファイル一覧から行うよう変更
+- 旧NVS設定を初回読込時にLittleFSへ自動移行
+
+### Fixed
+
+- NVSの空きentryが残っていても断片化により設定の一部だけが書き換わり、保存に失敗する問題を解消
+- ArduinoJsonのroot再生成により設定ファイルのヘッダーが失われ、保存検証が毎回失敗する問題を修正
+
 ## [1.0.1]
 
 ### Changed
@@ -136,7 +155,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.1.0
 [1.0.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.1
 [1.0.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.0
 [0.9.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v0.9.1

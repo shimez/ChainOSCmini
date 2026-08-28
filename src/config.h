@@ -3,13 +3,15 @@
 #include <stdint.h>
 
 static constexpr const char* APP_NAME = "ChainOSCmini";
-static constexpr const char* APP_VERSION = "1.0.1";
+static constexpr const char* APP_VERSION = "1.1.0";
 static constexpr unsigned long SERIAL_BAUD = 115200;
 static constexpr unsigned long BOOT_DIAGNOSTICS_DELAY_MS = 5000;
 static constexpr unsigned long HEARTBEAT_INTERVAL_MS = 5000;
 
 // Enable only while diagnosing Web UI response performance.
 #define CHAINOSCMINI_WEB_PERF_DEBUG 0
+// Report per-device file size and LittleFS total/used/free capacity.
+#define CHAINOSCMINI_STORAGE_DEBUG 1
 
 static constexpr bool HARDWARE_GPIO_ENABLED = true;
 

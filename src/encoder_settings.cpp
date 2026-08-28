@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <math.h>
 
+#include "device_file_storage.h"
+
 namespace {
 
 constexpr size_t MAX_ENCODER_SETTINGS = 40;
@@ -74,7 +76,7 @@ bool sameSetting(const EncoderSetting& left, const EncoderSetting& right) {
   return true;
 }
 
-bool loadSetting(const String& identity, EncoderSetting& setting, bool& found) {
+bool loadLegacySetting(const String& identity, EncoderSetting& setting, bool& found) {
   found = false;
   Preferences preferences;
   const String nameSpace = deviceNamespace(identity);
@@ -149,70 +151,43 @@ bool loadSetting(const String& identity, EncoderSetting& setting, bool& found) {
 }
 
 bool writeSetting(const EncoderSetting& setting) {
-  Preferences preferences;
-  const String nameSpace = deviceNamespace(setting.identity);
-  if (!preferences.begin(nameSpace.c_str(), false)) return false;
-  preferences.putString("ver", STORAGE_VERSION);
-  preferences.putString("id", setting.identity);
-  preferences.putString("name", setting.displayName);
-  preferences.putString("rot", setting.rotationAddress);
-  preferences.putBool("inc", setting.sendIncrement);
-  preferences.putFloat("amin", setting.absoluteInputMin);
-  preferences.putFloat("amax", setting.absoluteInputMax);
-  preferences.putFloat("iscale", setting.incrementScale);
-  preferences.putFloat("omin", setting.outputMin);
-  preferences.putFloat("omax", setting.outputMax);
-  preferences.putUChar("otype", static_cast<uint8_t>(setting.outputType));
-  preferences.putUChar("cmode", static_cast<uint8_t>(setting.clickMode));
-  preferences.putUChar("pc", setting.pressMessageCount);
-  preferences.putUChar("rc", setting.releaseMessageCount);
-  for (uint8_t i = 0; i < setting.pressMessageCount; ++i) {
-    preferences.putString(indexedKey("pa", i).c_str(),
-                          setting.pressMessages[i].address);
-    preferences.putString(indexedKey("pv", i).c_str(),
-                          setting.pressMessages[i].valueStr);
-    preferences.putUChar(indexedKey("pt", i).c_str(),
-                         static_cast<uint8_t>(setting.pressMessages[i].valueType));
-  }
-  for (uint8_t i = 0; i < setting.releaseMessageCount; ++i) {
-    preferences.putString(indexedKey("ra", i).c_str(),
-                          setting.releaseMessages[i].address);
-    preferences.putString(indexedKey("rv", i).c_str(),
-                          setting.releaseMessages[i].valueStr);
-    preferences.putUChar(indexedKey("rt", i).c_str(),
-                         static_cast<uint8_t>(setting.releaseMessages[i].valueType));
-  }
-  preferences.putString("sa", setting.clickSequence.address);
-  preferences.putUChar("stype",
-                       static_cast<uint8_t>(setting.clickSequence.valueType));
-  preferences.putFloat("start", setting.clickSequence.start);
-  preferences.putFloat("end", setting.clickSequence.end);
-  preferences.putFloat("step", setting.clickSequence.step);
-  preferences.end();
-
+  if (!deviceFileStorageSave(setting)) return false;
   EncoderSetting verify = setting;
-  bool found = false;
-  const bool loaded = loadSetting(setting.identity, verify, found);
-  return loaded && found && sameSetting(setting, verify);
+  return deviceFileStorageLoad(verify) == DeviceFileLoadResult::Loaded &&
+         sameSetting(setting, verify);
+}
+
+bool loadSetting(const String& identity, EncoderSetting& setting, bool& found) {
+  const DeviceFileLoadResult result = deviceFileStorageLoad(setting);
+  if (result == DeviceFileLoadResult::Loaded) { found = true; return true; }
+  if (result == DeviceFileLoadResult::Error) { found = true; return false; }
+  if (!loadLegacySetting(identity, setting, found) || !found) return false;
+  if (deviceFileStorageSave(setting)) {
+    Serial.printf("[ChainOSCmini][ENCCFG] migrated identity=%s source=NVS target=LittleFS\n",
+                  identity.c_str());
+  }
+  return true;
 }
 
 void saveKnownDevices() {
-  if (loadingKnown) return;
-  String known;
-  for (size_t i = 0; i < settingCount; ++i) {
-    if (!known.isEmpty()) known += '\n';
-    known += settings[i].identity;
-  }
-  Preferences preferences;
-  if (preferences.begin("enccfg", false)) {
-    preferences.putString("known", known);
-    preferences.end();
-  }
+  // LittleFS files are the catalog. NVS "known" is read only for migration.
 }
 
 }  // namespace
 
 void encoderSettingsSetup() {
+  deviceFileStorageBegin();
+  String fileIdentities[MAX_ENCODER_SETTINGS];
+  const size_t fileCount =
+      deviceFileStorageList("encoder", fileIdentities, MAX_ENCODER_SETTINGS);
+  loadingKnown = true;
+  for (size_t i = 0; i < fileCount; ++i) {
+    const String& identity = fileIdentities[i];
+    if (identity.startsWith("chain:") && identity.length() > 6)
+      encoderSettingsEnsure(identity,
+                            String("Chain Encoder ") + identity.substring(6));
+  }
+  loadingKnown = false;
   Preferences preferences;
   String known;
   if (preferences.begin("enccfg", true)) {
@@ -305,6 +280,7 @@ bool encoderSettingsDelete(const String& identity) {
     }
   }
   if (found == settingCount) return false;
+  if (!deviceFileStorageRemove("encoder", identity)) return false;
   Preferences preferences;
   const String nameSpace = deviceNamespace(identity);
   if (preferences.begin(nameSpace.c_str(), false)) {

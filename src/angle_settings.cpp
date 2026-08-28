@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <math.h>
 
+#include "device_file_storage.h"
+
 namespace {
 
 constexpr size_t MAX_ANGLE_SETTINGS = 40;
@@ -49,7 +51,7 @@ bool sameSetting(const AngleSetting& left, const AngleSetting& right) {
          left.outputType == right.outputType;
 }
 
-bool loadSetting(const String& identity, AngleSetting& setting, bool& found) {
+bool loadLegacySetting(const String& identity, AngleSetting& setting, bool& found) {
   found = false;
   Preferences preferences;
   const String nameSpace = deviceNamespace(identity);
@@ -83,42 +85,43 @@ bool loadSetting(const String& identity, AngleSetting& setting, bool& found) {
 }
 
 bool writeSetting(const AngleSetting& setting) {
-  Preferences preferences;
-  const String nameSpace = deviceNamespace(setting.identity);
-  if (!preferences.begin(nameSpace.c_str(), false)) return false;
-  preferences.putString("ver", STORAGE_VERSION);
-  preferences.putString("id", setting.identity);
-  preferences.putString("name", setting.displayName);
-  preferences.putString("addr", setting.address);
-  preferences.putBool("12bit", setting.use12Bit);
-  preferences.putInt("dead", setting.deadband);
-  preferences.putFloat("omin", setting.outputMin);
-  preferences.putFloat("omax", setting.outputMax);
-  preferences.putUChar("otype", static_cast<uint8_t>(setting.outputType));
-  preferences.end();
+  if (!deviceFileStorageSave(setting)) return false;
   AngleSetting verify = setting;
-  bool found = false;
-  return loadSetting(setting.identity, verify, found) && found &&
+  return deviceFileStorageLoad(verify) == DeviceFileLoadResult::Loaded &&
          sameSetting(setting, verify);
 }
 
+bool loadSetting(const String& identity, AngleSetting& setting, bool& found) {
+  const DeviceFileLoadResult result = deviceFileStorageLoad(setting);
+  if (result == DeviceFileLoadResult::Loaded) { found = true; return true; }
+  if (result == DeviceFileLoadResult::Error) { found = true; return false; }
+  if (!loadLegacySetting(identity, setting, found) || !found) return false;
+  if (deviceFileStorageSave(setting)) {
+    Serial.printf("[ChainOSCmini][ANGLECFG] migrated identity=%s source=NVS target=LittleFS\n",
+                  identity.c_str());
+  }
+  return true;
+}
+
 void saveKnownDevices() {
-  if (loadingKnown) return;
-  String known;
-  for (size_t i = 0; i < settingCount; ++i) {
-    if (!known.isEmpty()) known += '\n';
-    known += settings[i].identity;
-  }
-  Preferences preferences;
-  if (preferences.begin("anglecfg", false)) {
-    preferences.putString("known", known);
-    preferences.end();
-  }
+  // LittleFS files are the catalog. NVS "known" is read only for migration.
 }
 
 }  // namespace
 
 void angleSettingsSetup() {
+  deviceFileStorageBegin();
+  String fileIdentities[MAX_ANGLE_SETTINGS];
+  const size_t fileCount =
+      deviceFileStorageList("angle", fileIdentities, MAX_ANGLE_SETTINGS);
+  loadingKnown = true;
+  for (size_t i = 0; i < fileCount; ++i) {
+    const String& identity = fileIdentities[i];
+    if (identity.startsWith("chain:") && identity.length() > 6)
+      angleSettingsEnsure(identity,
+                          String("Chain Angle ") + identity.substring(6));
+  }
+  loadingKnown = false;
   Preferences preferences;
   String known;
   if (preferences.begin("anglecfg", true)) {
@@ -189,6 +192,7 @@ bool angleSettingsDelete(const String& identity) {
     }
   }
   if (found == settingCount) return false;
+  if (!deviceFileStorageRemove("angle", identity)) return false;
   Preferences preferences;
   const String nameSpace = deviceNamespace(identity);
   if (preferences.begin(nameSpace.c_str(), false)) {

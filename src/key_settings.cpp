@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <math.h>
 
+#include "device_file_storage.h"
+
 namespace {
 constexpr size_t MAX_KEY_SETTINGS = 40;
 constexpr char FIELD_SEPARATOR = '\x1f';
@@ -354,46 +356,13 @@ bool loadDirectSetting(const String& identity, KeySetting& setting,
 }
 
 bool saveDirectSetting(const KeySetting& setting) {
-  Preferences preferences;
-  const String nameSpace = deviceNamespace(setting.identity);
-  if (!preferences.begin(nameSpace.c_str(), false)) return false;
-  preferences.putString("ver", DIRECT_STORAGE_VERSION);
-  preferences.putString("id", setting.identity);
-  preferences.putString("name", setting.displayName);
-  preferences.putUChar("mode", static_cast<uint8_t>(setting.mode));
-  preferences.putUChar("pc", setting.pressMessageCount);
-  preferences.putUChar("rc", setting.releaseMessageCount);
-  for (uint8_t i = 0; i < setting.pressMessageCount; ++i) {
-    preferences.putString(indexedKey("pa", i).c_str(),
-                          setting.pressMessages[i].address);
-    preferences.putString(indexedKey("pv", i).c_str(),
-                          setting.pressMessages[i].valueStr);
-    preferences.putUChar(indexedKey("pt", i).c_str(),
-                         static_cast<uint8_t>(setting.pressMessages[i].valueType));
-  }
-  for (uint8_t i = 0; i < setting.releaseMessageCount; ++i) {
-    preferences.putString(indexedKey("ra", i).c_str(),
-                          setting.releaseMessages[i].address);
-    preferences.putString(indexedKey("rv", i).c_str(),
-                          setting.releaseMessages[i].valueStr);
-    preferences.putUChar(indexedKey("rt", i).c_str(),
-                         static_cast<uint8_t>(setting.releaseMessages[i].valueType));
-  }
-  preferences.putString("sa", setting.sequence.address);
-  preferences.putUChar("stype", static_cast<uint8_t>(setting.sequence.valueType));
-  preferences.putFloat("start", setting.sequence.start);
-  preferences.putFloat("end", setting.sequence.end);
-  preferences.putFloat("step", setting.sequence.step);
-  preferences.end();
-
+  if (!deviceFileStorageSave(setting)) return false;
   KeySetting verify = setting;
-  bool found = false;
-  const char* reason = "unknown";
-  const bool loaded = loadDirectSetting(setting.identity, verify, found, reason);
-  const bool match = loaded && sameStoredSetting(setting, verify);
-  Serial.printf("[ChainOSCmini][KEYCFG] direct_verify identity=%s namespace=%s found=%u loaded=%u match=%u reason=%s\n",
-                setting.identity.c_str(), nameSpace.c_str(), found ? 1U : 0U,
-                loaded ? 1U : 0U, match ? 1U : 0U, reason);
+  const bool match = deviceFileStorageLoad(verify) ==
+                         DeviceFileLoadResult::Loaded &&
+                     sameStoredSetting(setting, verify);
+  Serial.printf("[ChainOSCmini][KEYCFG] file_verify identity=%s match=%u\n",
+                setting.identity.c_str(), match ? 1U : 0U);
   return match;
 }
 
@@ -511,7 +480,7 @@ bool loadV2(KeySetting& setting, const String& data, int offset,
   return true;
 }
 
-bool loadSetting(KeySetting& setting) {
+bool loadLegacySetting(KeySetting& setting) {
   KeySetting directCandidate = setting;
   bool directFound = false;
   const char* directReason = "unknown";
@@ -644,6 +613,51 @@ bool loadSetting(KeySetting& setting) {
   return true;
 }
 
+bool loadSetting(KeySetting& setting) {
+  const DeviceFileLoadResult result = deviceFileStorageLoad(setting);
+  if (result == DeviceFileLoadResult::Loaded) {
+    if (!validAddress(setting.sequence.address) ||
+        setting.pressMessageCount + setting.releaseMessageCount >
+            MAX_KEY_OSC_MESSAGES)
+      return false;
+    for (uint8_t i = 0; i < setting.pressMessageCount; ++i)
+      if (!validAddress(setting.pressMessages[i].address)) return false;
+    for (uint8_t i = 0; i < setting.releaseMessageCount; ++i)
+      if (!validAddress(setting.releaseMessages[i].address)) return false;
+    keySettingsNormalizeSequence(setting.sequence);
+    return true;
+  }
+  if (result == DeviceFileLoadResult::Error) return false;
+  if (!loadLegacySetting(setting)) return false;
+  if (deviceFileStorageSave(setting)) {
+    Serial.printf("[ChainOSCmini][KEYCFG] migrated identity=%s source=NVS target=LittleFS\n",
+                  setting.identity.c_str());
+    Preferences direct;
+    const String nameSpace = deviceNamespace(setting.identity);
+    if (direct.begin(nameSpace.c_str(), false)) {
+      direct.clear();
+      direct.end();
+    }
+    const String key = storageKey(setting.identity);
+    Preferences base;
+    if (base.begin("keycfg", false)) {
+      base.remove(key.c_str());
+      base.end();
+    }
+    Preferences messages;
+    if (messages.begin("keymulti", false)) {
+      messages.remove(key.c_str());
+      messages.end();
+    }
+    Serial.printf("[ChainOSCmini][KEYCFG] legacy_removed identity=%s source=NVS\n",
+                  setting.identity.c_str());
+  } else {
+    Serial.printf("[ChainOSCmini][KEYCFG] migration_failed identity=%s source=NVS target=LittleFS\n",
+                  setting.identity.c_str());
+  }
+  return true;
+}
+
 void saveKnownDevices() {
   if (loadingKnown) return;
   String known;
@@ -671,8 +685,22 @@ void keySettingsNormalizeSequence(KeySequenceConfig& sequence) {
 
 void keySettingsSetup() {
   Serial.println("[ChainOSCmini][KEYCFG] setup_begin=true");
+  deviceFileStorageBegin();
   keySettingsEnsure("dualkey:1", "DualKey KEY1", "/chainoscmini/dualkey/key1");
   keySettingsEnsure("dualkey:2", "DualKey KEY2", "/chainoscmini/dualkey/key2");
+  String fileIdentities[MAX_KEY_SETTINGS];
+  const size_t fileCount =
+      deviceFileStorageList("key", fileIdentities, MAX_KEY_SETTINGS);
+  loadingKnown = true;
+  for (size_t i = 0; i < fileCount; ++i) {
+    const String& identity = fileIdentities[i];
+    if (identity.startsWith("chain:") && identity.length() > 6) {
+      const String uid = identity.substring(6);
+      keySettingsEnsure(identity, String("Chain Key ") + uid,
+                        String("/chainoscmini/chain/key/") + uid);
+    }
+  }
+  loadingKnown = false;
   Preferences preferences;
   String known;
   if (preferences.begin("keycfg", true)) {
@@ -717,7 +745,6 @@ KeySetting* keySettingsEnsure(const String& identity, const String& defaultName,
   setting.sequence.address = defaultAddress;
   keySettingsNormalizeSequence(setting.sequence);
   loadSetting(setting);
-  if (!setting.builtIn) saveKnownDevices();
   return &setting;
 }
 
@@ -769,6 +796,8 @@ bool keySettingsDelete(const String& identity) {
     }
   }
   if (found == settingCount) return false;
+
+  if (!deviceFileStorageRemove("key", identity)) return false;
 
   Preferences directPreferences;
   const String directNamespace = deviceNamespace(identity);

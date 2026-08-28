@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <math.h>
 
+#include "device_file_storage.h"
+
 namespace {
 constexpr size_t MAX_SETTINGS = 40;
 constexpr char STORAGE_VERSION[] = "T1";
@@ -50,7 +52,7 @@ bool same(const TofSetting& a, const TofSetting& b) {
          fabsf(a.outputMax - b.outputMax) <= .00001f &&
          a.outputType == b.outputType;
 }
-bool load(const String& identity, TofSetting& setting, bool& found) {
+bool loadLegacy(const String& identity, TofSetting& setting, bool& found) {
   found = false;
   Preferences p;
   const String ns = deviceNamespace(identity);
@@ -69,25 +71,34 @@ bool load(const String& identity, TofSetting& setting, bool& found) {
   setting = c; return true;
 }
 bool write(const TofSetting& s) {
-  Preferences p; const String ns = deviceNamespace(s.identity);
-  if (!p.begin(ns.c_str(), false)) return false;
-  p.putString("ver", STORAGE_VERSION); p.putString("id", s.identity);
-  p.putString("name", s.displayName); p.putString("addr", s.address);
-  p.putInt("dead", s.deadband); p.putInt("maxmm", s.maxDistanceMm);
-  p.putBool("nearhi", s.nearValueHigh); p.putFloat("omin", s.outputMin);
-  p.putFloat("omax", s.outputMax); p.putUChar("otype", static_cast<uint8_t>(s.outputType));
-  p.end(); TofSetting verify = s; bool found = false;
-  return load(s.identity, verify, found) && found && same(s, verify);
+  if (!deviceFileStorageSave(s)) return false;
+  TofSetting verify = s;
+  return deviceFileStorageLoad(verify) == DeviceFileLoadResult::Loaded &&
+         same(s, verify);
 }
-void saveKnown() {
-  if (loadingKnown) return;
-  String known;
-  for (size_t i = 0; i < settingCount; ++i) { if (!known.isEmpty()) known += '\n'; known += settings[i].identity; }
-  Preferences p; if (p.begin("tofcfg", false)) { p.putString("known", known); p.end(); }
+bool load(const String& identity, TofSetting& setting, bool& found) {
+  const DeviceFileLoadResult result = deviceFileStorageLoad(setting);
+  if (result == DeviceFileLoadResult::Loaded) { found = true; return true; }
+  if (result == DeviceFileLoadResult::Error) { found = true; return false; }
+  if (!loadLegacy(identity, setting, found) || !found) return false;
+  if (deviceFileStorageSave(setting))
+    Serial.printf("[ChainOSCmini][TOFCFG] migrated identity=%s source=NVS target=LittleFS\n", identity.c_str());
+  return true;
 }
+void saveKnown() { /* LittleFS files are the catalog; NVS is migration-only. */ }
 }
 
 void tofSettingsSetup() {
+  deviceFileStorageBegin();
+  String fileIdentities[MAX_SETTINGS];
+  const size_t fileCount = deviceFileStorageList("tof", fileIdentities, MAX_SETTINGS);
+  loadingKnown = true;
+  for (size_t i = 0; i < fileCount; ++i) {
+    const String& identity = fileIdentities[i];
+    if (identity.startsWith("chain:") && identity.length() > 6)
+      tofSettingsEnsure(identity, String("Chain ToF ") + identity.substring(6));
+  }
+  loadingKnown = false;
   Preferences p; String known;
   if (p.begin("tofcfg", true)) { known = p.getString("known", ""); p.end(); }
   loadingKnown = true; int offset = 0;
@@ -121,6 +132,7 @@ bool tofSettingsDelete(const String& identity) {
   size_t found = settingCount;
   for (size_t i = 0; i < settingCount; ++i) if (settings[i].identity == identity) { if (settings[i].connectedPortMask) return false; found = i; break; }
   if (found == settingCount) return false;
+  if (!deviceFileStorageRemove("tof", identity)) return false;
   Preferences p; const String ns = deviceNamespace(identity); if (p.begin(ns.c_str(), false)) { p.clear(); p.end(); }
   for (size_t i = found + 1; i < settingCount; ++i) settings[i - 1] = settings[i];
   --settingCount; settings[settingCount] = TofSetting(); saveKnown(); return true;
