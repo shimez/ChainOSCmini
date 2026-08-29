@@ -30,6 +30,8 @@ bool deviceFileStorageSave(const TofSetting& setting);
 bool deviceFileStorageSave(const JoystickSetting& setting);
 
 bool deviceFileStorageRemove(const char* type, const String& identity);
+bool deviceFileStorageExists(const char* type, const String& identity);
+bool deviceFileStorageCanSave(const char* type, const String& identity,
+                              size_t limit);
 size_t deviceFileStorageList(const char* type, String* identities,
                              size_t capacity);
-

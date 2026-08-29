@@ -30,7 +30,10 @@ static constexpr uint8_t CHAIN_G47_G48_RX_PIN = 47;
 static constexpr uint8_t CHAIN_G47_G48_TX_PIN = 48;
 static constexpr uint32_t CHAIN_BAUD = 115200;
 static constexpr unsigned long CHAIN_SCAN_INTERVAL_MS = 2000;
-static constexpr uint16_t CHAIN_MAX_DEVICES = 16;
+// Detection capacity is intentionally higher than the per-type saved-setting
+// limit. Devices beyond that limit must remain visible in the Web UI so the
+// user receives an explicit error when attempting to save them.
+static constexpr uint16_t CHAIN_MAX_DEVICES = 64;
 static constexpr unsigned long CHAIN_KEY_POLL_INTERVAL_MS = 25;
 static constexpr uint8_t CHAIN_KEY_LED_BRIGHTNESS = 60;
 

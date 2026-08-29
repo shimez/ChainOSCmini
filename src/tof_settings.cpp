@@ -7,7 +7,8 @@
 #include "device_file_storage.h"
 
 namespace {
-constexpr size_t MAX_SETTINGS = 40;
+constexpr size_t MAX_SAVED_SETTINGS = 40;
+constexpr size_t MAX_SETTINGS = MAX_SAVED_SETTINGS + 1;
 constexpr char STORAGE_VERSION[] = "T1";
 TofSetting settings[MAX_SETTINGS];
 size_t settingCount = 0;
@@ -90,8 +91,9 @@ void saveKnown() { /* LittleFS files are the catalog; NVS is migration-only. */ 
 
 void tofSettingsSetup() {
   deviceFileStorageBegin();
-  String fileIdentities[MAX_SETTINGS];
-  const size_t fileCount = deviceFileStorageList("tof", fileIdentities, MAX_SETTINGS);
+  String fileIdentities[MAX_SAVED_SETTINGS];
+  const size_t fileCount =
+      deviceFileStorageList("tof", fileIdentities, MAX_SAVED_SETTINGS);
   loadingKnown = true;
   for (size_t i = 0; i < fileCount; ++i) {
     const String& identity = fileIdentities[i];

@@ -7,7 +7,8 @@
 #include "device_file_storage.h"
 
 namespace {
-constexpr size_t MAX_KEY_SETTINGS = 40;
+constexpr size_t MAX_SAVED_KEY_SETTINGS = 40;
+constexpr size_t MAX_KEY_SETTINGS = MAX_SAVED_KEY_SETTINGS + 3;
 constexpr char FIELD_SEPARATOR = '\x1f';
 constexpr char LEGACY_STORAGE_VERSION[] = "K2";
 constexpr char BASE_STORAGE_VERSION[] = "KC4";
@@ -663,6 +664,7 @@ void saveKnownDevices() {
   String known;
   for (size_t i = 0; i < settingCount; ++i) {
     if (settings[i].builtIn) continue;
+    if (!deviceFileStorageExists("key", settings[i].identity)) continue;
     if (!known.isEmpty()) known += '\n';
     known += settings[i].identity;
   }
@@ -688,9 +690,9 @@ void keySettingsSetup() {
   deviceFileStorageBegin();
   keySettingsEnsure("dualkey:1", "DualKey KEY1", "/chainoscmini/dualkey/key1");
   keySettingsEnsure("dualkey:2", "DualKey KEY2", "/chainoscmini/dualkey/key2");
-  String fileIdentities[MAX_KEY_SETTINGS];
+  String fileIdentities[MAX_SAVED_KEY_SETTINGS];
   const size_t fileCount =
-      deviceFileStorageList("key", fileIdentities, MAX_KEY_SETTINGS);
+      deviceFileStorageList("key", fileIdentities, MAX_SAVED_KEY_SETTINGS);
   loadingKnown = true;
   for (size_t i = 0; i < fileCount; ++i) {
     const String& identity = fileIdentities[i];

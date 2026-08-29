@@ -18,6 +18,7 @@
 #include "config.h"
 #include "angle_settings.h"
 #include "chain_port.h"
+#include "device_file_storage.h"
 #include "encoder_settings.h"
 #include "key_settings.h"
 #include "joystick_settings.h"
@@ -59,6 +60,18 @@ constexpr int CHAIN_TOF_DEVICE_TYPE = 5;
 constexpr int CHAIN_JOYSTICK_DEVICE_TYPE = 4;
 constexpr size_t MAX_IMPORT_BYTES = 32768;
 constexpr size_t MAX_PRESET_BYTES = 16384;
+constexpr size_t MAX_SAVED_SETTINGS_PER_TYPE = 40;
+
+const char* storageTypeForDeviceType(int type) {
+  switch (type) {
+    case CHAIN_KEY_DEVICE_TYPE: return "key";
+    case CHAIN_ENCODER_DEVICE_TYPE: return "encoder";
+    case CHAIN_ANGLE_DEVICE_TYPE: return "angle";
+    case CHAIN_TOF_DEVICE_TYPE: return "tof";
+    case CHAIN_JOYSTICK_DEVICE_TYPE: return "joystick";
+    default: return nullptr;
+  }
+}
 
 #if CHAINOSCMINI_WEB_PERF_DEBUG
 uint32_t webRequestSequence = 0;
@@ -1103,6 +1116,7 @@ void sendStatusPage(const String& message = String()) {
   if (!flushHtml("COMMON_SENT")) return;
 
   size_t cardIndex = 0;
+  bool connectedDeviceLimitExceeded = false;
   // The two built-in DualKey buttons are not on either Chain port, so keep
   // them at the top of the connected-device section.
   for (size_t index = 0; index < keySettingsCount(); ++index) {
@@ -1126,6 +1140,12 @@ void sendStatusPage(const String& message = String()) {
     }
 
     bool appended = false;
+    const char* connectedStorageType = storageTypeForDeviceType(deviceType);
+    if (connectedStorageType != nullptr &&
+        !deviceFileStorageCanSave(connectedStorageType, identity,
+                                  MAX_SAVED_SETTINGS_PER_TYPE)) {
+      connectedDeviceLimitExceeded = true;
+    }
     if (deviceType == 3) {  // Chain Key
       for (size_t index = 0; index < keySettingsCount(); ++index) {
         KeySetting* setting = keySettingsAt(index);
@@ -1179,6 +1199,68 @@ void sendStatusPage(const String& message = String()) {
       }
     }
 
+    if (!appended) {
+      const String uid = identity.startsWith("chain:")
+                             ? identity.substring(6)
+                             : identity;
+      if (deviceType == CHAIN_KEY_DEVICE_TYPE) {
+        KeySetting setting;
+        setting.identity = identity;
+        setting.displayName = String("Chain Key ") + uid;
+        const String address = String("/chainoscmini/chain/key/") + uid;
+        setting.pressMessages[0].address = address;
+        setting.pressMessages[0].valueStr = "1";
+        setting.releaseMessages[0].address = address;
+        setting.releaseMessages[0].valueStr = "0";
+        setting.sequence.address = address;
+        keySettingsNormalizeSequence(setting.sequence);
+        appendKeyCard(html, setting, cardIndex++);
+        appended = true;
+      } else if (deviceType == CHAIN_ENCODER_DEVICE_TYPE) {
+        EncoderSetting setting;
+        setting.identity = identity;
+        setting.displayName = String("Chain Encoder ") + uid;
+        setting.pressMessages[0].address = "/avatar/parameters/EncoderClick";
+        setting.pressMessages[0].valueStr = "1.0";
+        setting.pressMessages[0].valueType = TYPE_FLOAT;
+        setting.releaseMessages[0].address =
+            "/avatar/parameters/EncoderClick";
+        setting.releaseMessages[0].valueStr = "0.0";
+        setting.releaseMessages[0].valueType = TYPE_FLOAT;
+        setting.clickSequence.address = "/avatar/parameters/EncoderSeq";
+        keySettingsNormalizeSequence(setting.clickSequence);
+        appendEncoderCard(html, setting, cardIndex++);
+        appended = true;
+      } else if (deviceType == CHAIN_ANGLE_DEVICE_TYPE) {
+        AngleSetting setting;
+        setting.identity = identity;
+        setting.displayName = String("Chain Angle ") + uid;
+        appendAngleCard(html, setting, cardIndex++);
+        appended = true;
+      } else if (deviceType == CHAIN_TOF_DEVICE_TYPE) {
+        TofSetting setting;
+        setting.identity = identity;
+        setting.displayName = String("Chain ToF ") + uid;
+        appendTofCard(html, setting, cardIndex++);
+        appended = true;
+      } else if (deviceType == CHAIN_JOYSTICK_DEVICE_TYPE) {
+        JoystickSetting setting;
+        setting.identity = identity;
+        setting.displayName = String("Chain Joystick ") + uid;
+        setting.pressMessages[0].address = "/avatar/parameters/JoyClick";
+        setting.pressMessages[0].valueStr = "1.0";
+        setting.pressMessages[0].valueType = TYPE_FLOAT;
+        setting.releaseMessages[0].address = "/avatar/parameters/JoyClick";
+        setting.releaseMessages[0].valueStr = "0.0";
+        setting.releaseMessages[0].valueType = TYPE_FLOAT;
+        setting.clickSequence.address = "/avatar/parameters/JoySeq";
+        keySettingsNormalizeSequence(setting.clickSequence);
+        appendJoystickCard(html, setting, cardIndex++);
+        appended = true;
+      }
+      if (appended) connectedDeviceLimitExceeded = true;
+    }
+
     if (appended) {
       ++sentCards;
       if (!flushHtml("DEVICE_SENT")) return;
@@ -1186,7 +1268,11 @@ void sendStatusPage(const String& message = String()) {
   }
   html += F("<input type='hidden' name='connected_count' value='");
   html += cardIndex;
-  html += F("'><div class='save-bar'><span id='dirty-status' class='dirty-status' hidden>");
+  html += F("'>");
+  if (connectedDeviceLimitExceeded) {
+    html += F("<input type='hidden' name='storage_limit_exceeded' value='1'>");
+  }
+  html += F("<div class='save-bar'><span id='dirty-status' class='dirty-status' hidden>");
   html += tr("Unsaved changes", "未保存の変更があります");
   html += F("</span><button class='primary' type='submit'>");
   html += tr("Save All Settings", "すべての設定を保存");
@@ -1199,35 +1285,39 @@ void sendStatusPage(const String& message = String()) {
   if (!flushHtml("SAVED_HEADER_SENT")) return;
   for (size_t index = 0; index < keySettingsCount(); ++index) {
     KeySetting* setting = keySettingsAt(index);
-    if (setting != nullptr && !setting->builtIn) {
+    if (setting != nullptr && !setting->builtIn &&
+        deviceFileStorageExists("key", setting->identity)) {
       appendSavedDeviceCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < encoderSettingsCount(); ++index) {
     EncoderSetting* setting = encoderSettingsAt(index);
-    if (setting != nullptr) {
+    if (setting != nullptr &&
+        deviceFileStorageExists("encoder", setting->identity)) {
       appendSavedEncoderCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < angleSettingsCount(); ++index) {
     AngleSetting* setting = angleSettingsAt(index);
-    if (setting != nullptr) {
+    if (setting != nullptr &&
+        deviceFileStorageExists("angle", setting->identity)) {
       appendSavedAngleCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < tofSettingsCount(); ++index) {
     TofSetting* setting = tofSettingsAt(index);
-    if (setting != nullptr) {
+    if (setting != nullptr &&
+        deviceFileStorageExists("tof", setting->identity)) {
       appendSavedTofCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
   }
   for (size_t index = 0; index < joystickSettingsCount(); ++index) {
     JoystickSetting* setting = joystickSettingsAt(index);
-    if (setting) {
+    if (setting && deviceFileStorageExists("joystick", setting->identity)) {
       appendSavedJoystickCard(html, *setting);
       if (!flushHtml("SAVED_DEVICE_SENT")) return;
     }
@@ -1485,6 +1575,13 @@ void sendActionResult(int status, const String& message) {
 }
 
 void handleSaveAll() {
+  if (server.arg("storage_limit_exceeded") == "1") {
+    sendActionResult(
+        409,
+        tr("The device settings exceed the per-type limit of 40.",
+           "デバイスの設定が種別ごとの上限40件を超えています。"));
+    return;
+  }
   String host = server.arg("osc_host");
   String portText = server.arg("osc_port");
   host.trim(); portText.trim();
@@ -1517,6 +1614,22 @@ void handleSaveAll() {
          type != CHAIN_ANGLE_DEVICE_TYPE &&
          type != CHAIN_TOF_DEVICE_TYPE && type != CHAIN_JOYSTICK_DEVICE_TYPE)) {
       sendActionResult(400, tr("Could not save settings. Check the device fields.", "設定を保存できませんでした。デバイスの設定項目を確認してください。"));
+      return;
+    }
+    String identity;
+    if (type == CHAIN_KEY_DEVICE_TYPE) identity = keyCandidate.identity;
+    else if (type == CHAIN_ENCODER_DEVICE_TYPE) identity = encoderCandidate.identity;
+    else if (type == CHAIN_ANGLE_DEVICE_TYPE) identity = angleCandidate.identity;
+    else if (type == CHAIN_TOF_DEVICE_TYPE) identity = tofCandidate.identity;
+    else if (type == CHAIN_JOYSTICK_DEVICE_TYPE) identity = joystickCandidate.identity;
+    const char* storageType = storageTypeForDeviceType(type);
+    if (storageType == nullptr ||
+        !deviceFileStorageCanSave(storageType, identity,
+                                  MAX_SAVED_SETTINGS_PER_TYPE)) {
+      sendActionResult(
+          409,
+          tr("The device settings exceed the per-type limit of 40.",
+             "デバイスの設定が種別ごとの上限40件を超えています。"));
       return;
     }
   }

@@ -7,7 +7,8 @@
 #include "device_file_storage.h"
 
 namespace {
-constexpr size_t MAX_SETTINGS = 40;
+constexpr size_t MAX_SAVED_SETTINGS = 40;
+constexpr size_t MAX_SETTINGS = MAX_SAVED_SETTINGS + 1;
 constexpr char STORAGE_VERSION[] = "J1";
 JoystickSetting settings[MAX_SETTINGS];
 size_t settingCount = 0;
@@ -72,7 +73,7 @@ bool load(const String& identity, JoystickSetting& setting, bool& found){const D
 bool write(const JoystickSetting& s){if(!deviceFileStorageSave(s))return false;JoystickSetting v=s;return deviceFileStorageLoad(v)==DeviceFileLoadResult::Loaded&&same(s,v);}
 void saveKnown(){/* LittleFS files are the catalog; NVS is migration-only. */}
 }
-void joystickSettingsSetup(){deviceFileStorageBegin();String fileIdentities[MAX_SETTINGS];size_t fileCount=deviceFileStorageList("joystick",fileIdentities,MAX_SETTINGS);loadingKnown=true;for(size_t i=0;i<fileCount;++i){const String& id=fileIdentities[i];if(id.startsWith("chain:")&&id.length()>6)joystickSettingsEnsure(id,String("Chain Joystick ")+id.substring(6));}loadingKnown=false;Preferences p;String known;if(p.begin("joycfg",true)){known=p.getString("known","");p.end();}loadingKnown=true;int offset=0;while(offset<(int)known.length()){int end=known.indexOf('\n',offset);if(end<0)end=known.length();String id=known.substring(offset,end);if(id.startsWith("chain:")&&id.length()>6)joystickSettingsEnsure(id,String("Chain Joystick ")+id.substring(6));offset=end+1;}loadingKnown=false;Serial.printf("[ChainOSCmini][JOYCFG] setup_complete settings=%u\n",(unsigned)settingCount);}
+void joystickSettingsSetup(){deviceFileStorageBegin();String fileIdentities[MAX_SAVED_SETTINGS];size_t fileCount=deviceFileStorageList("joystick",fileIdentities,MAX_SAVED_SETTINGS);loadingKnown=true;for(size_t i=0;i<fileCount;++i){const String& id=fileIdentities[i];if(id.startsWith("chain:")&&id.length()>6)joystickSettingsEnsure(id,String("Chain Joystick ")+id.substring(6));}loadingKnown=false;Preferences p;String known;if(p.begin("joycfg",true)){known=p.getString("known","");p.end();}loadingKnown=true;int offset=0;while(offset<(int)known.length()){int end=known.indexOf('\n',offset);if(end<0)end=known.length();String id=known.substring(offset,end);if(id.startsWith("chain:")&&id.length()>6)joystickSettingsEnsure(id,String("Chain Joystick ")+id.substring(6));offset=end+1;}loadingKnown=false;Serial.printf("[ChainOSCmini][JOYCFG] setup_complete settings=%u\n",(unsigned)settingCount);}
 JoystickSetting* joystickSettingsEnsure(const String& identity,const String& defaultName){for(size_t i=0;i<settingCount;++i)if(settings[i].identity==identity)return &settings[i];if(settingCount>=MAX_SETTINGS)return nullptr;JoystickSetting& s=settings[settingCount++];s.identity=identity;s.displayName=defaultName;s.pressMessages[0].address="/avatar/parameters/JoyClick";s.pressMessages[0].valueStr="1.0";s.pressMessages[0].valueType=TYPE_FLOAT;s.releaseMessages[0].address="/avatar/parameters/JoyClick";s.releaseMessages[0].valueStr="0.0";s.releaseMessages[0].valueType=TYPE_FLOAT;s.clickSequence.address="/avatar/parameters/JoySeq";bool found=false;load(identity,s,found);saveKnown();return &s;}
 size_t joystickSettingsCount(){return settingCount;} JoystickSetting* joystickSettingsAt(size_t i){return i<settingCount?&settings[i]:nullptr;}
 bool joystickSettingsSave(const JoystickSetting& c){if(!valid(c))return false;JoystickSetting* d=nullptr;for(size_t i=0;i<settingCount;++i)if(settings[i].identity==c.identity)d=&settings[i];if(!d||!write(c))return false;uint8_t mask=d->connectedPortMask;*d=c;d->connectedPortMask=mask;keySettingsNormalizeSequence(d->clickSequence);return true;}

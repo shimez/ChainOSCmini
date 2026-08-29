@@ -8,7 +8,8 @@
 
 namespace {
 
-constexpr size_t MAX_ENCODER_SETTINGS = 40;
+constexpr size_t MAX_SAVED_ENCODER_SETTINGS = 40;
+constexpr size_t MAX_ENCODER_SETTINGS = MAX_SAVED_ENCODER_SETTINGS + 1;
 constexpr char STORAGE_VERSION[] = "E1";
 EncoderSetting settings[MAX_ENCODER_SETTINGS];
 size_t settingCount = 0;
@@ -177,9 +178,10 @@ void saveKnownDevices() {
 
 void encoderSettingsSetup() {
   deviceFileStorageBegin();
-  String fileIdentities[MAX_ENCODER_SETTINGS];
+  String fileIdentities[MAX_SAVED_ENCODER_SETTINGS];
   const size_t fileCount =
-      deviceFileStorageList("encoder", fileIdentities, MAX_ENCODER_SETTINGS);
+      deviceFileStorageList("encoder", fileIdentities,
+                            MAX_SAVED_ENCODER_SETTINGS);
   loadingKnown = true;
   for (size_t i = 0; i < fileCount; ++i) {
     const String& identity = fileIdentities[i];

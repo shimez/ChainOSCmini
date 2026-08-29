@@ -11,6 +11,7 @@ namespace {
 constexpr char ROOT_DIR[] = "/device-settings";
 constexpr char FILE_FORMAT[] = "ChainOSCmini-device-setting";
 constexpr uint8_t FILE_VERSION = 1;
+constexpr size_t MAX_SAVED_PER_TYPE = 40;
 bool mounted = false;
 
 bool ensureDirectory(const String& path) {
@@ -122,6 +123,11 @@ bool readSequence(JsonObjectConst object, KeySequenceConfig& sequence) {
 template <typename Fill>
 bool saveDocument(const char* type, const String& identity,
                   const String& displayName, Fill fill) {
+  if (!deviceFileStorageCanSave(type, identity, MAX_SAVED_PER_TYPE)) {
+    logResult("save", type, identity, settingPath(type, identity), 0,
+              "failed", "type_limit_reached");
+    return false;
+  }
   if (!prepareType(type)) {
     logResult("save", type, identity, "", 0, "failed", "mount_failed");
     return false;
@@ -482,6 +488,33 @@ bool deviceFileStorageRemove(const char* type, const String& identity) {
   return removed;
 }
 
+bool deviceFileStorageExists(const char* type, const String& identity) {
+  return prepareType(type) && LittleFS.exists(settingPath(type, identity));
+}
+
+bool deviceFileStorageCanSave(const char* type, const String& identity,
+                              size_t limit) {
+  if (!prepareType(type)) return true;
+  if (String(type) == "key" &&
+      (identity == "dualkey:1" || identity == "dualkey:2")) return true;
+  if (LittleFS.exists(settingPath(type, identity))) return true;
+  File directory = LittleFS.open(typeDirectory(type));
+  if (!directory || !directory.isDirectory()) return true;
+  size_t count = 0;
+  File file = directory.openNextFile();
+  while (file) {
+    const String name = file.name();
+    const bool builtInKey = String(type) == "key" &&
+        (name.endsWith("/Key1.json") || name.endsWith("/Key2.json") ||
+         name == "Key1.json" || name == "Key2.json");
+    if (!file.isDirectory() && name.endsWith(".json") && !builtInKey) ++count;
+    file.close();
+    file = directory.openNextFile();
+  }
+  directory.close();
+  return count < limit;
+}
+
 size_t deviceFileStorageList(const char* type, String* identities,
                              size_t capacity) {
   if (!prepareType(type)) return 0;
@@ -498,7 +531,10 @@ size_t deviceFileStorageList(const char* type, String* identities,
           document["version"].as<int>() == FILE_VERSION &&
           String(document["type"].as<const char*>()) == type &&
           document["identity"].is<const char*>()) {
-        identities[count++] = document["identity"].as<const char*>();
+        const String identity = document["identity"].as<const char*>();
+        const bool builtInKey = String(type) == "key" &&
+            (identity == "dualkey:1" || identity == "dualkey:2");
+        if (!builtInKey) identities[count++] = identity;
       }
     }
     file.close();

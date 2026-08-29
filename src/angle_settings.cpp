@@ -8,7 +8,8 @@
 
 namespace {
 
-constexpr size_t MAX_ANGLE_SETTINGS = 40;
+constexpr size_t MAX_SAVED_ANGLE_SETTINGS = 40;
+constexpr size_t MAX_ANGLE_SETTINGS = MAX_SAVED_ANGLE_SETTINGS + 1;
 constexpr char STORAGE_VERSION[] = "A1";
 AngleSetting settings[MAX_ANGLE_SETTINGS];
 size_t settingCount = 0;
@@ -111,9 +112,10 @@ void saveKnownDevices() {
 
 void angleSettingsSetup() {
   deviceFileStorageBegin();
-  String fileIdentities[MAX_ANGLE_SETTINGS];
+  String fileIdentities[MAX_SAVED_ANGLE_SETTINGS];
   const size_t fileCount =
-      deviceFileStorageList("angle", fileIdentities, MAX_ANGLE_SETTINGS);
+      deviceFileStorageList("angle", fileIdentities,
+                            MAX_SAVED_ANGLE_SETTINGS);
   loadingKnown = true;
   for (size_t i = 0; i < fileCount; ++i) {
     const String& identity = fileIdentities[i];
