@@ -13,6 +13,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
+## Version 1.2.0
+
+Device Preset Import Error Registry v1へ完全対応し、JSON構文、必須項目、JSON型、OSC設定、Sequence、デバイス固有値・範囲、保存失敗のエラーコードと日英メッセージをChainOSCシリーズで統一しました。不正なプリセットは既存設定を変更せず拒否します。
+
 ## Version 1.1.1
 
 PlatformIOおよびGitHub Actionsで生成するファームウェアのUSB CDCを起動時から有効化し、Web Installer版でもUSBシリアルログを確認できるようにしたメンテナンスリリースです。

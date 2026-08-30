@@ -6,6 +6,23 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.2.0]
+
+### Added
+
+- Device Preset Import Error Registry v1の全22エラーコードに対応
+- Device Presetの必須項目、JSON型、OSC Type、OSC値、Sequence、デバイス固有値・範囲の事前検証を追加
+
+### Changed
+
+- Device Presetインポート時の日英エラーメッセージをChainOSCシリーズ共通仕様へ統一
+- Web UIのtitleと見出しを`ChainOSCmini Settings`へ統一
+
+### Fixed
+
+- 不正なDevice Presetで設定が部分的に適用されないよう、検証完了後にのみ保存する処理を明確化
+- 旧形式プリセットの範囲外Sequence TypeとToF String TypeをFloatへ移行する互換処理を維持
+
 ## [1.1.1]
 
 ### Fixed
@@ -161,7 +178,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/shimez/ChainOSCmini/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/shimez/ChainOSCmini/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.1.0
 [1.0.1]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.0.1
