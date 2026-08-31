@@ -10,6 +10,7 @@
 #include "key_settings.h"
 #include "network_manager.h"
 #include "osc_manager.h"
+#include "system_settings.h"
 
 namespace {
 
@@ -27,6 +28,7 @@ void appSetup() {
   Serial.begin(SERIAL_BAUD);
   delay(200);
 
+  systemSettingsSetup();
   oscSetup();
   networkSetup();
   dualKeyHardwareSetup();

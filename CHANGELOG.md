@@ -6,6 +6,18 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-01
+
+### Added
+
+- Wi-Fi認証情報、OSC送信先、Web UI言語をLittleFSへ原子的に保存するシステム設定ファイルを追加
+- システム設定ファイルのサイズとLittleFSの総容量・使用量・空き容量をシリアルログへ出力
+
+### Changed
+
+- Wi-Fi認証情報、OSC送信先、Web UI言語の保存先をNVSからLittleFSへ変更
+- 初回起動時に既存のNVS設定をLittleFSへ自動移行
+
 ## [1.2.0]
 
 ### Added
@@ -178,7 +190,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/shimez/ChainOSCmini/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/shimez/ChainOSCmini/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/shimez/ChainOSCmini/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/shimez/ChainOSCmini/releases/tag/v1.1.0

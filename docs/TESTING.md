@@ -123,6 +123,15 @@
 - 設定を保存して再起動、抜き差し、左右移動してもUID単位で復元される
 - 取り外したAngleが保存済みデバイスへ移り、削除後の再接続で初期値になる
 
+## システム設定のLittleFS保存とNVS移行
+
+- 旧ファームウェアでWi-Fi、OSC送信先、Web UI言語をNVSへ保存する
+- ファイルシステムを消去せずに更新し、`[ChainOSCmini][SYSTEM] migration source=nvs target=littlefs result=ok`が出る
+- 再起動後もWi-Fi接続、OSC送信先、Web UI言語が復元される
+- システム設定の保存ログでファイルサイズ、LittleFS総容量、使用量、空き容量を確認できる
+- Wi-Fi設定を削除してもOSC送信先とWeb UI言語は維持される
+- Web Installerまたはmerged firmwareでファイルシステムを消去せず更新し、同じ設定が維持される
+
 ## JSONバックアップとプリセット
 
 - 全体設定JSONをエクスポートでき、`format`が`ChainOSCmini-settings`である

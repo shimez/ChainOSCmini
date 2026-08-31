@@ -13,6 +13,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
+## Version 1.3.0
+
+Wi-Fi認証情報、OSC送信先、Web UI言語の保存先をNVSからLittleFSへ移行しました。旧NVS設定は初回起動時に自動移行され、検証済み一時ファイルからの原子的な置換で保存されます。
+
 ## Version 1.2.0
 
 Device Preset Import Error Registry v1へ完全対応し、JSON構文、必須項目、JSON型、OSC設定、Sequence、デバイス固有値・範囲、保存失敗のエラーコードと日英メッセージをChainOSCシリーズで統一しました。不正なプリセットは既存設定を変更せず拒否します。
