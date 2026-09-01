@@ -13,6 +13,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
+## Version 1.4.0
+
+Web UIの最下段から、確認後にLittleFSとNVSの全設定を削除して本体を再起動できるようにしました。
+
 ## Version 1.3.0
 
 Wi-Fi認証情報、OSC送信先、Web UI言語の保存先をNVSからLittleFSへ移行しました。旧NVS設定は初回起動時に自動移行され、検証済み一時ファイルからの原子的な置換で保存されます。
