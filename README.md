@@ -13,7 +13,7 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 1.4.1
+## Version 1.4.2
 
 AP Modeのキャプティブポータルからも、確認後にLittleFSとNVSの全設定を削除して再起動できるようにしました。
 

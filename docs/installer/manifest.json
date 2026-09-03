@@ -1,6 +1,6 @@
 {
   "name": "ChainOSCmini",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -9,7 +9,7 @@
       "improv": false,
       "parts": [
         {
-          "path": "firmware/ChainOSCmini-1.4.1-ChainDualKey-merged.bin",
+          "path": "firmware/ChainOSCmini-1.4.2-ChainDualKey-merged.bin",
           "offset": 0
         }
       ]

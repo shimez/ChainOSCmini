@@ -6,6 +6,17 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-03
+
+### Added
+
+- 通常Web UIとAP Modeのキャプティブポータルに、製品ポータルと同じfaviconを追加
+
+### Changed
+
+- M5ChainOSCに合わせ、Encoder、Joystick、Angle、ToFおよびクリック時Sequenceの入力中・保存時検証を強化
+- 数値範囲、不感帯、最大距離の警告表示を欄直下の赤色メッセージへ統一
+
 ## [1.4.1] - 2026-09-02
 
 ### Added
@@ -202,7 +213,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/shimez/ChainOSCmini/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/shimez/ChainOSCmini/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/shimez/ChainOSCmini/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/shimez/ChainOSCmini/compare/v1.2.0...v1.3.0
