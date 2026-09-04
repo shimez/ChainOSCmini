@@ -287,6 +287,7 @@ bool deviceFileStorageSave(const EncoderSetting& setting) {
                       [&](JsonObject root) {
     root["rotationAddress"] = setting.rotationAddress;
     root["sendIncrement"] = setting.sendIncrement;
+    root["wrapAround"] = setting.wrapAround;
     root["absoluteInputMin"] = setting.absoluteInputMin;
     root["absoluteInputMax"] = setting.absoluteInputMax;
     root["incrementScale"] = setting.incrementScale;
@@ -389,6 +390,7 @@ DeviceFileLoadResult deviceFileStorageLoad(EncoderSetting& setting) {
     return DeviceFileLoadResult::Error;
   c.rotationAddress = document["rotationAddress"].as<const char*>();
   c.sendIncrement = document["sendIncrement"] | false;
+  c.wrapAround = document["wrapAround"] | true;
   c.absoluteInputMin = document["absoluteInputMin"].as<float>();
   c.absoluteInputMax = document["absoluteInputMax"].as<float>();
   c.incrementScale = document["incrementScale"].as<float>();

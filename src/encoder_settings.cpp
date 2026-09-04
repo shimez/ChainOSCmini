@@ -55,6 +55,7 @@ bool sameSetting(const EncoderSetting& left, const EncoderSetting& right) {
   if (left.identity != right.identity || left.displayName != right.displayName ||
       left.rotationAddress != right.rotationAddress ||
       left.sendIncrement != right.sendIncrement ||
+      left.wrapAround != right.wrapAround ||
       fabsf(left.absoluteInputMin - right.absoluteInputMin) > 0.00001f ||
       fabsf(left.absoluteInputMax - right.absoluteInputMax) > 0.00001f ||
       fabsf(left.incrementScale - right.incrementScale) > 0.00001f ||
@@ -94,6 +95,7 @@ bool loadLegacySetting(const String& identity, EncoderSetting& setting, bool& fo
   candidate.displayName = preferences.getString("name", "");
   candidate.rotationAddress = preferences.getString("rot", "");
   candidate.sendIncrement = preferences.getBool("inc", false);
+  candidate.wrapAround = true;
   candidate.absoluteInputMin = preferences.getFloat("amin", 0);
   candidate.absoluteInputMax = preferences.getFloat("amax", 20);
   candidate.incrementScale = preferences.getFloat("iscale", 0.05f);
@@ -261,6 +263,7 @@ bool encoderSettingsSave(const EncoderSetting& candidate) {
   const uint8_t portMask = destination->connectedPortMask;
   *destination = candidate;
   destination->connectedPortMask = portMask;
+  destination->boundedAbsoluteInitialized = false;
   keySettingsNormalizeSequence(destination->clickSequence);
   Serial.printf("[ChainOSCmini][ENCCFG] saved identity=%s mode=%u press=%u release=%u\n",
                 candidate.identity.c_str(),

@@ -2,9 +2,9 @@
 
 ChainOSCminiのファームウェアをChain DualKeyへブラウザーから書き込むためのWeb Installerです。
 
-現在の公開版は`1.4.2`です。
+現在の公開版は`1.4.3`です。
 
-- Version 1.4.2: Web UIの入力検証を強化し、通常画面とAP Modeへfaviconを追加
+- Version 1.4.3: Web UIの入力検証を強化し、通常画面とAP Modeへfaviconを追加
 - Version 1.4.1: AP Modeのキャプティブポータルから全設定を削除する機能を追加
 - Version 1.4.0: Web UIからLittleFSとNVSの全設定を削除して再起動する機能を追加
 - Version 1.3.0: Wi-Fi認証情報、OSC送信先、Web UI言語をLittleFSへ移行し、旧NVS設定の自動移行と原子的な保存に対応
@@ -23,7 +23,7 @@ https://shimez.github.io/ChainOSCmini/installer/
 GitHub ActionsがPlatformIOでmergedバイナリを生成してGitHub Releaseへ添付します。Releaseを公開すると、Pages Workflowが同じバイナリをPages成果物へ組み込みます。
 
 ```text
-installer/firmware/ChainOSCmini-1.4.2-ChainDualKey-merged.bin
+installer/firmware/ChainOSCmini-1.4.3-ChainDualKey-merged.bin
 ```
 
 `manifest.json`はこのファイルをESP32-S3のoffset `0x0`へ書き込みます。Release Assetをブラウザーから直接参照しないため、CORSによる`Failed to fetch`を避けられます。
@@ -33,7 +33,7 @@ installer/firmware/ChainOSCmini-1.4.2-ChainDualKey-merged.bin
 Releaseからmergedバイナリをダウンロードし、次の場所へ配置します。
 
 ```text
-docs/installer/firmware/ChainOSCmini-1.4.2-ChainDualKey-merged.bin
+docs/installer/firmware/ChainOSCmini-1.4.3-ChainDualKey-merged.bin
 ```
 
 その後、`docs/installer`でローカルWebサーバーを起動します。
