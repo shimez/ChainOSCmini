@@ -13,50 +13,16 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 > [!IMPORTANT]
 > ChainOSCminiは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
 
-## Version 1.4.3
+## 現在のバージョン
 
-AP Modeのキャプティブポータルからも、確認後にLittleFSとNVSの全設定を削除して再起動できるようにしました。
+### v1.4.3
 
-## Version 1.4.0
+- Encoderの絶対値モードで、最小値／最大値に達したときのループまたは停止を設定可能
+- 「範囲をループする」のチェックボックスとラベルを横並びで中央揃えに調整
+- Device Presetの`wrapAround`を保存・復元
+- `wrapAround`が省略された既存プリセットは、従来互換のループ有効として扱う
 
-Web UIの最下段から、確認後にLittleFSとNVSの全設定を削除して本体を再起動できるようにしました。
-
-## Version 1.3.0
-
-Wi-Fi認証情報、OSC送信先、Web UI言語の保存先をNVSからLittleFSへ移行しました。旧NVS設定は初回起動時に自動移行され、検証済み一時ファイルからの原子的な置換で保存されます。
-
-## Version 1.2.0
-
-Device Preset Import Error Registry v1へ完全対応し、JSON構文、必須項目、JSON型、OSC設定、Sequence、デバイス固有値・範囲、保存失敗のエラーコードと日英メッセージをChainOSCシリーズで統一しました。不正なプリセットは既存設定を変更せず拒否します。
-
-## Version 1.1.1
-
-PlatformIOおよびGitHub Actionsで生成するファームウェアのUSB CDCを起動時から有効化し、Web Installer版でもUSBシリアルログを確認できるようにしたメンテナンスリリースです。
-
-## Version 1.1.0
-
-デバイス設定の保存先をNVSからLittleFSへ移行しました。保存済みの旧NVS設定は初回読込時にLittleFSへ自動移行されます。UID全体をファイル名に使用し、本体キーは`Key1.json`／`Key2.json`として保存します。保存時のファイルサイズとLittleFSの使用量・空き容量はシリアルログで確認できます。
-
-## Version 1.0.1
-
-OSC送信先の表記をほかのChainOSCシリーズと統一したメンテナンスリリースです。
-
-## Version 1.0.0
-
-ChainOSCminiとして予定していた基本機能を備えた最初の安定版です。M5ChainOSCとの設定・プリセット互換性を重視しています。
-
-- EncoderのAbsolute／Increment回転値をOSC送信
-- EncoderクリックのPress / ReleaseとSequenceに対応
-- Encoder設定をUID単位で保存・復元
-- M5ChainOSC互換のEncoderプリセットをエクスポート／インポート
-- Angleの8-bit／12-bit入力、Deadband、出力範囲・型設定に対応
-- Angle設定をUID単位で保存し、M5ChainOSC互換プリセットを共有
-- ToFの有効距離、Deadband、出力方向・範囲・型設定に対応
-- ToF設定をUID単位で保存し、M5ChainOSC互換プリセットを共有
-- JoystickのX/Y軸、Deadband、反転、出力範囲・型、クリック設定に対応
-- GPIO47/GPIO48側に接続したJoystickはX軸・Y軸の正負を自動反転
-
-詳しい変更内容は[変更履歴](CHANGELOG.md)を参照してください。
+過去の変更内容は[変更履歴](CHANGELOG.md)を参照してください。
 
 ## 主な機能
 
@@ -67,9 +33,33 @@ ChainOSCminiとして予定していた基本機能を備えた最初の安定�
 - Chain Key／Encoder／Angle／ToF／Joystickの設定をUID単位で保存し、抜き差しや左右移動後も復元
 - ブラウザーから英語／日本語で設定可能
 - 全体設定とデバイスプリセットのJSONエクスポート／インポートに対応
-- M5ChainOSCとKey／Encoder／Angle／ToF／Joystickプリセットを共有可能
+- 対応するChainOSCシリーズ製品とのデバイスプリセット共有
 - AP ModeとキャプティブポータルによるWi-Fi初期設定
 - Arduino IDE、PlatformIO、Web Installerに対応
+
+## Documentation
+
+- [日本語ユーザーガイド](https://shimez.github.io/ChainOSCmini/user-guide/)
+- [English User Guide](https://shimez.github.io/ChainOSCmini/en/user-guide/)
+- [プリセット・クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start-presets/)
+- [Preset Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start-presets/)
+- [Web Installer](https://shimez.github.io/ChainOSCmini/installer/)
+- [変更履歴](CHANGELOG.md)
+- [実機確認項目](docs/TESTING.md)
+- [ChainOSC共通仕様](https://github.com/shimez/ChainOSC)
+
+## Device Preset対応
+
+ChainOSCminiは、ChainOSCシリーズ共通の`ChainOSC-device-preset`形式に対応しています。
+
+- Key、Encoder、Angle、ToF、Joystickのプリセットをエクスポート／インポート
+- 対応する`deviceType`でデバイス種類を判定
+- 対応するDevice Typeと製品間でプリセットを共有
+- UID、Device Name、接続ポートなど、インポート先固有の情報は含めない
+- Import時は共通仕様に基づいてJSON構文、必須項目、JSON型、OSC設定、Sequence、デバイス固有値・範囲を検証
+- 不正なプリセットを拒否した場合、既存設定を変更しない
+
+Device Preset v1／v2の詳細な仕様、JSON Schema、fixture、Error Registryは、[ChainOSC共通仕様](https://github.com/shimez/ChainOSC)を参照してください。
 
 ## OSC Address
 
@@ -106,7 +96,7 @@ ChainOSCminiとして予定していた基本機能を備えた最初の安定�
 5. ChainOSCminiとOSC送信先が利用する2.4 GHz帯Wi-FiのSSIDとパスワードを保存します。
 6. 再起動後、`http://chainoscmini.local/`を開きます。
 
-WindowsでmDNS名を確認する場合はPowerShellで次を実行できます。
+WindowsでmDNS名を確認する場合:
 
 ```powershell
 Resolve-DnsName chainoscmini.local
@@ -118,11 +108,13 @@ mDNS名で設定画面を開けない場合は、上記コマンドの結果に�
 > Web UIには認証機能がありません。ChainOSCminiは、家庭内LANなど信頼できるローカルネットワークで使用してください。イベント会場、ホテル、公共Wi-Fiなど、不特定の利用者が接続するネットワークでの使用は推奨しません。
 
 > [!NOTE]
-> ESP32-S3は2.4 GHz帯Wi-Fiを使用します。5 GHz専用のSSIDには接続できません。Wi-Fi認証情報はESP32-S3のLittleFSへ保存されます。ChainOSCminiは信頼できるローカルネットワークで使用してください。
+> ESP32-S3は2.4 GHz帯Wi-Fiを使用します。5 GHz専用のSSIDには接続できません。Wi-Fi認証情報、OSC送信先、Web UI言語はLittleFSへ保存されます。旧NVS設定が存在する場合は初回起動時に移行されます。
 
 電源スイッチに関係するGPIO7／GPIO8は設定も駆動も行いません。
 
-起動から5秒後、USBシリアルへ次の情報を出力します。Arduino IDEのシリアルモニターがUSB再接続後に接続する時間を確保するため、起動直後には表示しません。
+## シリアルログ
+
+USBシリアルへ次の情報を出力します。
 
 - ChainOSCminiのバージョン
 - ビルド日時
@@ -131,8 +123,9 @@ mDNS名で設定画面を開けない場合は、上記コマンドの結果に�
 - リセット理由
 - Flash、Sketch、Heap、PSRAMの容量
 - 5秒間隔の稼働時間と空きHeap
+- LittleFSのファイルサイズ、総容量、使用量、空き容量
 
-起動診断は0.1.0と同様に起動から5秒後に表示します。キーとLEDは`appSetup()`完了後から動作します。
+シリアルモニターは`115200 bps`で開いてください。
 
 ## Arduino IDE
 
@@ -160,25 +153,14 @@ pio run --target upload
 pio device monitor
 ```
 
-COMポートを固定する場合は、ローカル環境だけで使用する`platformio_override.ini`などから`upload_port`と`monitor_port`を指定してください。個人環境のCOMポート番号はリポジトリへコミットしません。
+COMポートを固定する場合は、`platformio_override.ini`などローカル専用の設定で`upload_port`と`monitor_port`を指定してください。
 
 ## GitHub Actions／Web Installer
 
-- `main`へプッシュすると、Actions画面からPlatformIOビルドを手動確認できます。
-- `v1.0.0`のようなバージョンタグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
-- ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを自動配信します。
-- 公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
-- Web Installerでは、Release Assetを直接参照せずPagesと同じオリジンからファームウェアを配信します。
-
-## Documentation
-
-- [日本語ユーザーガイド](https://shimez.github.io/ChainOSCmini/user-guide/)
-- [English User Guide](https://shimez.github.io/ChainOSCmini/en/user-guide/)
-- [プリセット・クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start-presets/)
-- [Preset Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start-presets/)
-- [Web Installer](https://shimez.github.io/ChainOSCmini/installer/)
-- [変更履歴](CHANGELOG.md)
-- [実機確認項目](docs/TESTING.md)
+- `main`へプッシュすると、Actions画面からPlatformIOビルドを確認できます。
+- `vX.Y.Z`形式のバージョンタグをプッシュすると、mergedバイナリとSHA-256を生成し、ドラフトReleaseを作成します。
+- ドラフトReleaseを公開すると、GitHub PagesがReleaseのバイナリを取り込み、Web Installerを配信します。
+- Web Installerの公開URLは`https://shimez.github.io/ChainOSCmini/installer/`です。
 
 ## Arduino IDE／PlatformIO共通化
 
@@ -188,11 +170,6 @@ COMポートを固定する場合は、ローカル環境だけで使用する`p
 - Arduino IDEでは8 MB Flash向けの大容量Partition Schemeを選択します。PlatformIOは`default_8MB.csv`を使用します。
 - PlatformIOは`CHAINOSCMINI_PLATFORMIO`を定義し、`src/main.cpp`からエントリーポイントを提供します。
 - `src/`内のincludeは相対的なファイル名で統一します。
-
-## 今後の予定
-
-- その他のChainデバイスへの対応
-- M5ChainOSCとの機能・UI・プリセット互換性の継続的な改善
 
 ## ライセンス
 
