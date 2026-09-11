@@ -91,7 +91,7 @@ Device Preset v1／v2の詳細な仕様、JSON Schema、fixture、Error Registry
 | AngleでVRChatカメラをズーム | `/usercamera/Zoom` | 12-bit、出力範囲 `20`～`300` |
 | JoystickでVRChat内を移動 | `/input/Vertical`／`/input/Horizontal` | 出力範囲 `-1`～`1` |
 
-詳細やその他の設定例は[M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets)を参照してください。
+詳細やその他の設定例は[ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets)を参照してください。
 
 ## Wi-Fi初期設定
 

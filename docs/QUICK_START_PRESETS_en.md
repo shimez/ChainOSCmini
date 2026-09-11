@@ -60,7 +60,7 @@ Use `ipconfig` to find the VRChat computer's IPv4 address. Open `http://chainosc
 
 ## 6. Import a Key preset
 
-Download a Key JSON file from [M5ChainOSC Device Presets](https://github.com/shimez/M5ChainOSC/tree/main/presets/key). ChainOSCmini and M5ChainOSC use the same Key preset format.
+Download a Key JSON file from [ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets/key). ChainOSCmini and M5ChainOSC use the same Key preset format.
 
 1. Open `…` on DualKey KEY1/KEY2 or a connected Chain Key.
 2. Select `Import Preset (JSON)`.
