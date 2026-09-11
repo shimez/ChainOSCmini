@@ -41,8 +41,8 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 - [日本語ユーザーガイド](https://shimez.github.io/ChainOSCmini/user-guide/)
 - [English User Guide](https://shimez.github.io/ChainOSCmini/en/user-guide/)
-- [プリセット・クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start-presets/)
-- [Preset Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start-presets/)
+- [クイックスタート](https://shimez.github.io/ChainOSCmini/quick-start/)
+- [Quick Start](https://shimez.github.io/ChainOSCmini/en/quick-start/)
 - [Web Installer](https://shimez.github.io/ChainOSCmini/installer/)
 - [変更履歴](CHANGELOG.md)
 - [実機確認項目](docs/TESTING.md)

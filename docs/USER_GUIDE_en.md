@@ -153,14 +153,16 @@ Joystick Click supports the same Press / Release, eight-message limit, and Seque
 - A Value may contain up to 128 bytes.
 - Float and Int values must contain a number that can be interpreted as the selected type.
 
-## 11. Device presets
+## 11. Device Presets
 
 Open `…` in the upper-right corner of any Key, Encoder, Angle, ToF, or Joystick card.
 
 - `Export Preset (JSON)` exports settings without UID or Device Name.
 - `Import Preset (JSON)` applies and immediately stores a preset.
 
-The shared format is `ChainOSC-device-preset`, compatible with M5ChainOSC Key, Encoder, Angle, ToF, and Joystick presets. The legacy `M5ChainOSC-device-preset` format is also accepted.
+The shared format is `ChainOSC-device-preset`. It does not contain a UID or Device Name, so presets can be shared between other ChainOSC devices of the same type. ChainOSCmini handles Key v1, Encoder v1, Angle v1, ToF v1, and Joystick v1. Key v1 presets are shared with M5ChainOSC, ChainOSCmini, ChainOSCnano, ChainOSCPad, and ChainOSC for Windows; Encoder v1 with M5ChainOSC, ChainOSCmini, ChainOSCnano, and ChainOSCPad; and Angle v1, ToF v1, and Joystick v1 with M5ChainOSC, ChainOSCmini, and ChainOSCnano. ChainOSCmini does not support Encoder v2 import or export. See the [ChainOSC common specification](https://github.com/shimez/ChainOSC) for the detailed compatibility range.
+
+[ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets) provides examples for VRChat and other uses. Download a JSON file, open `…` on the target device card, and select `Import Preset (JSON)`. The legacy `M5ChainOSC-device-preset` format is also accepted.
 
 ## 12. Saved devices
 

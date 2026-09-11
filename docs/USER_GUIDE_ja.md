@@ -200,14 +200,16 @@ Joystick Click（ジョイスティッククリック）のPress / Release、最
 - Valueは最大128バイトです。
 - FloatとIntには選択した型として解釈できる数値を入力します。
 
-## 11. デバイスプリセット
+## 11. Device Preset
 
 各Key／Encoder／Angle／ToF／Joystick右上の`…`から操作します。
 
 - `Export Preset (JSON)`: UIDとDevice Nameを含まないデバイス設定を保存します。
 - `Import Preset (JSON)`: 同じ種類のデバイスへプリセットを適用し、直ちにストレージへ保存します。
 
-形式はM5ChainOSCと共通の`ChainOSC-device-preset`です。Key、Encoder、Angle、ToF、Joystickのプリセットを両プロジェクト間で共有できます。旧`M5ChainOSC-device-preset`形式もインポートできます。
+形式はChainOSCシリーズ共通の`ChainOSC-device-preset`です。UIDやDevice Nameを含まないため、同種デバイスなら他のChainOSCデバイスと共有できます。ChainOSCminiはKey v1、Encoder v1、Angle v1、ToF v1、Joystick v1を扱います。Key v1はM5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPad、ChainOSC for Windowsと、Encoder v1はM5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPadと共有できます。Angle v1、ToF v1、Joystick v1はM5ChainOSC、ChainOSCmini、ChainOSCnanoと共有できます。Encoder v2のImport / Exportには対応していません。詳細な互換範囲は[ChainOSC共通仕様](https://github.com/shimez/ChainOSC)を参照してください。
+
+[ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets)では、VRChatなどで利用できるサンプルを公開しています。JSONファイルをダウンロードし、対象デバイスカードの`…`から`Import Preset (JSON)`を選んで利用できます。旧`M5ChainOSC-device-preset`形式もインポートできます。
 
 ## 12. 接続中／保存済みデバイス
 
