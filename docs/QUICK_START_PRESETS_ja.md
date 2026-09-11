@@ -8,7 +8,7 @@ permalink: /quick-start-presets/
 
 [English version](../en/quick-start-presets/)
 
-このガイドでは、ファームウェアのインストールからKeyプリセットを使ってVRChatへOSCを送るまでを案内します。詳しい設定は[日本語ユーザーガイド](../user-guide/)を参照してください。
+このガイドでは、ファームウェアのインストールからDevice Presetを使ってVRChatへOSCを送るまでを案内します。Keyの例を中心に説明しますが、ChainOSCminiはEncoder、Angle、ToF、Joystickのプリセットにも対応しています。詳しい設定は[日本語ユーザーガイド](../user-guide/)を参照してください。
 
 ## 用意するもの
 
@@ -74,9 +74,9 @@ ChainOSCminiと同じネットワークに接続したWi-FiまたはEthernetア�
 > [!IMPORTANT]
 > Web UIには認証機能がありません。ChainOSCminiは、家庭内LANなど信頼できるローカルネットワークで使用してください。イベント会場、ホテル、公共Wi-Fiなど、不特定の利用者が接続するネットワークでの使用は推奨しません。
 
-## 7. Keyプリセットを入手する
+## 7. Device Presetを入手する
 
-ChainOSCmini 1.0.0は、M5ChainOSCと共通のデバイスプリセット形式を使用します。[ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets)から対応するJSONをダウンロードできます。
+ChainOSCmini 1.0.0は、ChainOSCシリーズ共通のデバイスプリセット形式を使用します。[ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets)から、Key、Encoder、Angle、ToF、Joystickなど接続するデバイスに対応するJSONをダウンロードできます。以下はKeyプリセットの例です。
 
 例：
 

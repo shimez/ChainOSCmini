@@ -8,7 +8,7 @@ permalink: /en/quick-start-presets/
 
 [日本語版](../../quick-start-presets/)
 
-This guide installs ChainOSCmini and sends OSC to VRChat with a shared Key preset. See the [English User Guide](../user-guide/) for details.
+This guide installs ChainOSCmini and sends OSC to VRChat with a shared Device Preset. The example focuses on a Key, but ChainOSCmini also supports Encoder, Angle, ToF, and Joystick presets. See the [English User Guide](../user-guide/) for details.
 
 ## What you need
 
@@ -58,9 +58,9 @@ Use `ipconfig` to find the VRChat computer's IPv4 address. Open `http://chainosc
 > [!IMPORTANT]
 > The Web UI does not require authentication. Use ChainOSCmini only on a trusted local network, such as your home LAN. Use on shared networks at event venues, hotels, or public Wi-Fi hotspots is not recommended.
 
-## 6. Import a Key preset
+## 6. Import a Device Preset
 
-Download a Key JSON file from [ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets/key). ChainOSCmini and M5ChainOSC use the same Key preset format.
+Download a JSON file for the connected device from [ChainOSC Device Presets](https://github.com/shimez/ChainOSC/tree/main/presets). ChainOSCmini supports Key, Encoder, Angle, ToF, and Joystick presets; the steps below use a Key preset as an example.
 
 1. Open `…` on DualKey KEY1/KEY2 or a connected Chain Key.
 2. Select `Import Preset (JSON)`.
