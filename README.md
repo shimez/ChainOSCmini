@@ -52,9 +52,15 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 ChainOSCminiは、ChainOSCシリーズ共通の`ChainOSC-device-preset`形式に対応しています。
 
+ChainOSCminiのDevice PresetはすべてschemaVersion 1です。
+
 - Key、Encoder、Angle、ToF、Joystickのプリセットをエクスポート／インポート
 - 対応する`deviceType`でデバイス種類を判定
-- 対応するDevice Typeと製品間でプリセットを共有
+- Key v1：M5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPad、ChainOSC for Windowsと共有
+- Encoder v1：M5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPadと共有
+- Encoder v2：ChainOSCminiはImport／Exportに非対応
+- Angle v1／ToF v1／Joystick v1：M5ChainOSC、ChainOSCmini、ChainOSCnano間で共有
+- 共有可否はDevice Type、schemaVersion、各製品のImporter／Exporter対応に基づく
 - UID、Device Name、接続ポートなど、インポート先固有の情報は含めない
 - Import時は共通仕様に基づいてJSON構文、必須項目、JSON型、OSC設定、Sequence、デバイス固有値・範囲を検証
 - 不正なプリセットを拒否した場合、既存設定を変更しない
