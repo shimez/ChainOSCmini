@@ -754,12 +754,24 @@ size_t chainPortConnectedDeviceCount() {
 
 bool chainPortConnectedDeviceAt(size_t index, String& identity,
                                 uint8_t& deviceType) {
+  uint8_t portNumber = 0;
+  size_t portIndex = 0;
+  return chainPortConnectedDeviceAt(index, identity, deviceType, portNumber,
+                                    portIndex);
+}
+
+bool chainPortConnectedDeviceAt(size_t index, String& identity,
+                                uint8_t& deviceType, uint8_t& portNumber,
+                                size_t& portIndex) {
   const ChainPortContext* port = &portG5G6;
+  portNumber = 1;
   if (index >= portG5G6.deviceCount) {
     index -= portG5G6.deviceCount;
     port = &portG47G48;
+    portNumber = 2;
   }
   if (index >= port->deviceCount) return false;
+  portIndex = index;
 
   const DeviceSnapshot& device = port->devices[index];
   if (!device.uidValid) return false;
