@@ -300,6 +300,50 @@ bool encoderSettingsSave(const EncoderSetting& candidate) {
   return true;
 }
 
+namespace {
+String legacyDirectionValue(const EncoderSetting& legacy, int direction) {
+  const float low = min(legacy.outputMin, legacy.outputMax);
+  const float high = max(legacy.outputMin, legacy.outputMax);
+  const float value = constrain(direction * legacy.incrementScale, low, high);
+  if (legacy.outputType == TYPE_INT) return String((int32_t)lroundf(value));
+  return String(value, legacy.outputType == TYPE_STRING ? 3 : 7);
+}
+}
+
+bool encoderSettingsBuildV2MigrationCandidate(const EncoderSetting& legacy,
+                                               EncoderSetting& candidate) {
+  if (legacy.settingsModel != ENCODER_SETTINGS_LEGACY) return false;
+  candidate = legacy;
+  candidate.settingsModel = ENCODER_SETTINGS_V2;
+  candidate.pushMode = legacy.clickMode;
+  candidate.logicalPosition = 0;
+  candidate.logicalPositionInitialized = false;
+  if (legacy.sendIncrement) {
+    candidate.rotationMode = ENCODER_ROTATION_DIRECTION;
+    candidate.clockwiseValue = legacyDirectionValue(legacy, 1);
+    candidate.counterClockwiseValue = legacyDirectionValue(legacy, -1);
+    return true;
+  }
+  const float span = legacy.absoluteInputMax - legacy.absoluteInputMin;
+  if (!isfinite(span) || floorf(span) != span || span < 1.0f || span > 65535.0f ||
+      !(legacy.outputMin < legacy.outputMax) || legacy.outputType == TYPE_STRING)
+    return false;
+  candidate.rotationMode = ENCODER_ROTATION_AMOUNT;
+  candidate.rangeSteps = static_cast<uint16_t>(span);
+  candidate.wrapAround = legacy.wrapAround;
+  candidate.clockwiseIncreases = true;
+  return true;
+}
+
+bool encoderSettingsCanLosslesslyMigrate(const EncoderSetting& legacy) {
+  if (legacy.settingsModel != ENCODER_SETTINGS_LEGACY || legacy.sendIncrement ||
+      legacy.wrapAround || legacy.absoluteInputMin != 0.0f ||
+      !(legacy.outputMin < legacy.outputMax) || legacy.outputType == TYPE_STRING)
+    return false;
+  const float span = legacy.absoluteInputMax - legacy.absoluteInputMin;
+  return isfinite(span) && floorf(span) == span && span >= 1.0f && span <= 65535.0f;
+}
+
 bool encoderSettingsDelete(const String& identity) {
   size_t found = settingCount;
   for (size_t i = 0; i < settingCount; ++i) {

@@ -46,6 +46,10 @@ struct EncoderSetting {
   uint8_t connectedPortMask = 0;
 };
 
+bool encoderSettingsBuildV2MigrationCandidate(const EncoderSetting& legacy,
+                                               EncoderSetting& candidate);
+bool encoderSettingsCanLosslesslyMigrate(const EncoderSetting& legacy);
+
 void encoderSettingsSetup();
 EncoderSetting* encoderSettingsEnsure(const String& identity,
                                       const String& defaultName);
