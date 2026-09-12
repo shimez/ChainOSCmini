@@ -6,6 +6,28 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-09-13
+
+### Added
+
+- Chain EncoderへDevice Preset v2準拠のAmount／Direction回転モードを追加
+- 旧形式Encoder設定から、内容を確認して明示的にv2へ移行するWeb UIを追加
+- Encoder v2 Device PresetのImport／Exportに対応
+
+### Changed
+
+- Encoder v2のFloat／Int／String出力、範囲ステップ、Wrap／Stop、回転方向をM5ChainOSCおよびChainOSCPadと共通の意味・検証・runtimeへ統一
+- 旧形式Encoder設定は通常保存で維持し、v2候補の確認後に保存が成功した場合だけv2へ移行するように変更
+- Encoder v1 Device PresetはLegacyとして読み込み、Encoder v2 Device Presetはv2として保持するよう互換処理を更新
+
+## [1.4.4] - 2026-09-12
+
+### Changed
+
+- 接続中のChainデバイスカードへ、Chainポート番号とポート内位置を示す`#1-1`／`#2-1`形式のラベルを追加
+- 内蔵キーを`#1 DualKey`／`#2 DualKey`として表示し、接続中デバイスカードの冗長な「接続済み」表示を削除
+- READMEとユーザードキュメントを現在の利用方法、ChainOSCシリーズ共通仕様、Device Presetライブラリへ到達しやすい構成に整理
+
 ## [1.4.3] - 2026-09-04
 
 ### Added
@@ -224,7 +246,10 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.5...HEAD
+[1.4.5]: https://github.com/shimez/ChainOSCmini/compare/v1.4.4...v1.4.5
+[1.4.4]: https://github.com/shimez/ChainOSCmini/compare/v1.4.3...v1.4.4
+[1.4.3]: https://github.com/shimez/ChainOSCmini/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/shimez/ChainOSCmini/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/shimez/ChainOSCmini/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/shimez/ChainOSCmini/compare/v1.3.0...v1.4.0
