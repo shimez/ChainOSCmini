@@ -5,6 +5,7 @@ ChainOSCminiのファームウェアをChain DualKeyへブラウザーから書�
 現在の公開版は`1.4.3`です。
 
 - Version 1.4.3: Web UIの入力検証を強化し、通常画面とAP Modeへfaviconを追加
+- Version 1.4.2: Encoder／Joystick／Angle／ToF／Push Sequenceの入力検証と警告表示を強化
 - Version 1.4.1: AP Modeのキャプティブポータルから全設定を削除する機能を追加
 - Version 1.4.0: Web UIからLittleFSとNVSの全設定を削除して再起動する機能を追加
 - Version 1.3.0: Wi-Fi認証情報、OSC送信先、Web UI言語をLittleFSへ移行し、旧NVS設定の自動移行と原子的な保存に対応
