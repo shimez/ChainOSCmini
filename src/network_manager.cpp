@@ -54,6 +54,7 @@ constexpr int SETTINGS_SCHEMA_VERSION = 1;
 constexpr char DEVICE_PRESET_FORMAT_NAME[] = "ChainOSC-device-preset";
 constexpr char LEGACY_DEVICE_PRESET_FORMAT_NAME[] = "M5ChainOSC-device-preset";
 constexpr int DEVICE_PRESET_SCHEMA_VERSION = 1;
+constexpr int DEVICE_PRESET_SCHEMA_VERSION_V2 = 2;
 constexpr int CHAIN_KEY_DEVICE_TYPE = 3;
 constexpr int CHAIN_ENCODER_DEVICE_TYPE = 1;
 constexpr int CHAIN_ANGLE_DEVICE_TYPE = 2;
@@ -259,6 +260,32 @@ String sequenceJson(const KeySequenceConfig& sequence) {
          ",\"step\":" + String(sequence.step, 6) + "}";
 }
 
+String sequenceV2Json(const KeySequenceConfig& sequence) {
+  return String("{\"address\":") + jsonString(sequence.address) +
+         ",\"type\":" + String(static_cast<int>(sequence.valueType)) +
+         ",\"start\":" + String(sequence.start, 9) +
+         ",\"end\":" + String(sequence.end, 9) +
+         ",\"step\":" + String(sequence.step, 9) + "}";
+}
+
+String encoderV2DirectionValueJson(const String& value, ValueType type) {
+  if (type == TYPE_STRING) return jsonString(value);
+  if (type == TYPE_INT) {
+    char* end = nullptr;
+    errno = 0;
+    const long parsed = strtol(value.c_str(), &end, 10);
+    if (errno == 0 && end != value.c_str() && *end == '\0' &&
+        parsed >= INT32_MIN && parsed <= INT32_MAX)
+      return String(static_cast<int32_t>(parsed));
+    return "0";
+  }
+  char* end = nullptr;
+  const float parsed = strtof(value.c_str(), &end);
+  return end != value.c_str() && *end == '\0' && isfinite(parsed)
+             ? String(parsed, 9)
+             : String("0.000000000");
+}
+
 String keySettingJson(const KeySetting& setting, bool includeIdentity) {
   String output = "{";
   if (includeIdentity) {
@@ -281,6 +308,8 @@ String keySettingJson(const KeySetting& setting, bool includeIdentity) {
 }
 
 String encoderSettingJson(const EncoderSetting& setting, bool includeIdentity) {
+  const bool encoderV2Preset =
+      !includeIdentity && setting.settingsModel == ENCODER_SETTINGS_V2;
   String output = "{";
   if (includeIdentity) {
     output += String("\"identity\":") + jsonString(setting.identity) +
@@ -290,9 +319,47 @@ String encoderSettingJson(const EncoderSetting& setting, bool includeIdentity) {
               ",\"builtIn\":false";
   } else {
     output += String("\"format\":") + jsonString(DEVICE_PRESET_FORMAT_NAME) +
-              ",\"schemaVersion\":" + String(DEVICE_PRESET_SCHEMA_VERSION) +
+              ",\"schemaVersion\":" +
+              String(encoderV2Preset ? DEVICE_PRESET_SCHEMA_VERSION_V2
+                                     : DEVICE_PRESET_SCHEMA_VERSION) +
               ",\"deviceType\":" + String(CHAIN_ENCODER_DEVICE_TYPE) +
               ",\"deviceTypeName\":\"Encoder\"";
+  }
+  if (encoderV2Preset) {
+    output += String(",\"encoder\":{\"rotationAddress\":") +
+              jsonString(setting.rotationAddress) +
+              ",\"rotationMode\":" +
+              jsonString(setting.rotationMode == ENCODER_ROTATION_AMOUNT
+                             ? "amount"
+                             : "direction");
+    if (setting.rotationMode == ENCODER_ROTATION_AMOUNT) {
+      output += ",\"rangeSteps\":" + String(setting.rangeSteps) +
+                ",\"wrap\":" +
+                String(setting.wrapAround ? "true" : "false") +
+                ",\"clockwiseIncreases\":" +
+                String(setting.clockwiseIncreases ? "true" : "false") +
+                ",\"outputMin\":" + String(setting.outputMin, 9) +
+                ",\"outputMax\":" + String(setting.outputMax, 9);
+    } else {
+      output += ",\"clockwiseValue\":" +
+                encoderV2DirectionValueJson(setting.clockwiseValue,
+                                            setting.outputType) +
+                ",\"counterClockwiseValue\":" +
+                encoderV2DirectionValueJson(setting.counterClockwiseValue,
+                                            setting.outputType);
+    }
+    output += ",\"outputType\":" +
+              String(static_cast<int>(setting.outputType)) +
+              ",\"pushMode\":" + String(static_cast<int>(setting.pushMode)) +
+              ",\"press\":" +
+              messageArrayJson(setting.pressMessages,
+                               setting.pressMessageCount) +
+              ",\"release\":" +
+              messageArrayJson(setting.releaseMessages,
+                               setting.releaseMessageCount) +
+              ",\"sequence\":" + sequenceV2Json(setting.clickSequence) +
+              "}}";
+    return output;
   }
   output += String(",\"encoder\":{\"rotationAddress\":") +
             jsonString(setting.rotationAddress) +
@@ -399,6 +466,21 @@ bool hasPresetFields(JsonObjectConst object, const char* const* fields,
                      size_t count, String& error) {
   for (size_t index = 0; index < count; ++index)
     if (!object.containsKey(fields[index])) return presetRequiredFieldMissing(error);
+  return true;
+}
+
+bool hasOnlyPresetFields(JsonObjectConst object, const char* const* fields,
+                         size_t count, String& error) {
+  for (JsonPairConst pair : object) {
+    bool allowed = false;
+    for (size_t index = 0; index < count; ++index) {
+      if (strcmp(pair.key().c_str(), fields[index]) == 0) {
+        allowed = true;
+        break;
+      }
+    }
+    if (!allowed) return presetDeviceSettingInvalid(error);
+  }
   return true;
 }
 
@@ -880,6 +962,142 @@ bool encoderSettingFromJson(JsonObjectConst object, EncoderSetting& candidate,
     if (!jsonMessage(message, candidate.releaseMessages[index++], error)) return false;
   return jsonSequence(encoder["sequence"].as<JsonObjectConst>(),
                       candidate.clickSequence, error);
+}
+
+bool encoderSettingFromPresetV2(JsonObjectConst object,
+                                EncoderSetting& candidate, String& error) {
+  static const char* const rootFields[] = {
+      "format", "schemaVersion", "deviceType", "deviceTypeName", "encoder"};
+  if (object.isNull() ||
+      !hasPresetFields(object, rootFields, 5, error) ||
+      !hasOnlyPresetFields(object, rootFields, 5, error) ||
+      !object["format"].is<const char*>() ||
+      String(object["format"].as<const char*>()) != DEVICE_PRESET_FORMAT_NAME ||
+      !object["schemaVersion"].is<int>() ||
+      object["schemaVersion"].as<int>() != DEVICE_PRESET_SCHEMA_VERSION_V2 ||
+      !object["deviceType"].is<int>() ||
+      object["deviceType"].as<int>() != CHAIN_ENCODER_DEVICE_TYPE ||
+      !object["deviceTypeName"].is<const char*>() ||
+      String(object["deviceTypeName"].as<const char*>()) != "Encoder" ||
+      !object["encoder"].is<JsonObjectConst>())
+    return presetFieldTypeInvalid(error);
+
+  JsonObjectConst encoder = object["encoder"].as<JsonObjectConst>();
+  static const char* const commonFields[] = {
+      "rotationAddress", "rotationMode", "outputType", "pushMode",
+      "press", "release", "sequence"};
+  if (!hasPresetFields(encoder, commonFields, 7, error) ||
+      !encoder["rotationAddress"].is<const char*>() ||
+      !encoder["rotationMode"].is<const char*>() ||
+      !encoder["outputType"].is<int>() || !encoder["pushMode"].is<int>() ||
+      !encoder["press"].is<JsonArrayConst>() ||
+      !encoder["release"].is<JsonArrayConst>() ||
+      !encoder["sequence"].is<JsonObjectConst>())
+    return presetFieldTypeInvalid(error);
+
+  candidate.settingsModel = ENCODER_SETTINGS_V2;
+  candidate.rotationAddress = encoder["rotationAddress"].as<const char*>();
+  candidate.rotationAddress.trim();
+  if (!validJsonAddress(candidate.rotationAddress, error)) return false;
+  const int outputType = encoder["outputType"].as<int>();
+  const int pushMode = encoder["pushMode"].as<int>();
+  if (outputType < TYPE_FLOAT || outputType > TYPE_STRING)
+    return oscTypeInvalid(error);
+  if (pushMode < MODE_PRESS_RELEASE || pushMode > MODE_SEQUENCE)
+    return presetDeviceSettingInvalid(error);
+  candidate.outputType = static_cast<ValueType>(outputType);
+  candidate.pushMode = static_cast<KeyMode>(pushMode);
+  candidate.clickMode = candidate.pushMode;
+
+  JsonArrayConst press = encoder["press"].as<JsonArrayConst>();
+  JsonArrayConst release = encoder["release"].as<JsonArrayConst>();
+  if (!validatePresetMessages(press, release, error) ||
+      !validatePresetSequence(encoder["sequence"].as<JsonObjectConst>(),
+                              false, error))
+    return false;
+  candidate.pressMessageCount = static_cast<uint8_t>(press.size());
+  candidate.releaseMessageCount = static_cast<uint8_t>(release.size());
+  uint8_t index = 0;
+  for (JsonObjectConst message : press)
+    if (!jsonMessage(message, candidate.pressMessages[index++], error))
+      return false;
+  index = 0;
+  for (JsonObjectConst message : release)
+    if (!jsonMessage(message, candidate.releaseMessages[index++], error))
+      return false;
+  if (!jsonSequence(encoder["sequence"].as<JsonObjectConst>(),
+                    candidate.clickSequence, error))
+    return false;
+
+  const String rotationMode = encoder["rotationMode"].as<const char*>();
+  if (rotationMode == "amount") {
+    static const char* const amountFields[] = {
+        "rotationAddress", "rotationMode", "rangeSteps", "wrap",
+        "clockwiseIncreases", "outputMin", "outputMax", "outputType",
+        "pushMode", "press", "release", "sequence"};
+    if (!hasPresetFields(encoder, amountFields, 12, error) ||
+        !hasOnlyPresetFields(encoder, amountFields, 12, error) ||
+        !encoder["rangeSteps"].is<int>() || !encoder["wrap"].is<bool>() ||
+        !encoder["clockwiseIncreases"].is<bool>() ||
+        !encoder["outputMin"].is<float>() ||
+        !encoder["outputMax"].is<float>())
+      return presetFieldTypeInvalid(error);
+    const int rangeSteps = encoder["rangeSteps"].as<int>();
+    if (rangeSteps < 1 || rangeSteps > 65535 ||
+        candidate.outputType == TYPE_STRING)
+      return presetDeviceSettingInvalid(error);
+    candidate.rotationMode = ENCODER_ROTATION_AMOUNT;
+    candidate.rangeSteps = static_cast<uint16_t>(rangeSteps);
+    candidate.wrapAround = encoder["wrap"].as<bool>();
+    candidate.clockwiseIncreases = encoder["clockwiseIncreases"].as<bool>();
+    candidate.outputMin = encoder["outputMin"].as<float>();
+    candidate.outputMax = encoder["outputMax"].as<float>();
+    if (!isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) ||
+        !(candidate.outputMin < candidate.outputMax))
+      return presetDeviceSettingInvalid(error);
+  } else if (rotationMode == "direction") {
+    static const char* const directionFields[] = {
+        "rotationAddress", "rotationMode", "clockwiseValue",
+        "counterClockwiseValue", "outputType", "pushMode", "press",
+        "release", "sequence"};
+    if (!hasPresetFields(encoder, directionFields, 9, error) ||
+        !hasOnlyPresetFields(encoder, directionFields, 9, error))
+      return false;
+    candidate.rotationMode = ENCODER_ROTATION_DIRECTION;
+    if (candidate.outputType == TYPE_STRING) {
+      if (!encoder["clockwiseValue"].is<const char*>() ||
+          !encoder["counterClockwiseValue"].is<const char*>())
+        return presetFieldTypeInvalid(error);
+      candidate.clockwiseValue = encoder["clockwiseValue"].as<const char*>();
+      candidate.counterClockwiseValue =
+          encoder["counterClockwiseValue"].as<const char*>();
+      if (candidate.clockwiseValue.length() > 128 ||
+          candidate.counterClockwiseValue.length() > 128)
+        return presetDeviceSettingInvalid(error);
+    } else if (candidate.outputType == TYPE_INT) {
+      if (!encoder["clockwiseValue"].is<int32_t>() ||
+          !encoder["counterClockwiseValue"].is<int32_t>())
+        return presetFieldTypeInvalid(error);
+      candidate.clockwiseValue =
+          String(encoder["clockwiseValue"].as<int32_t>());
+      candidate.counterClockwiseValue =
+          String(encoder["counterClockwiseValue"].as<int32_t>());
+    } else {
+      if (!encoder["clockwiseValue"].is<float>() ||
+          !encoder["counterClockwiseValue"].is<float>())
+        return presetFieldTypeInvalid(error);
+      const float clockwise = encoder["clockwiseValue"].as<float>();
+      const float counterClockwise =
+          encoder["counterClockwiseValue"].as<float>();
+      if (!isfinite(clockwise) || !isfinite(counterClockwise))
+        return presetDeviceSettingInvalid(error);
+      candidate.clockwiseValue = String(clockwise, 9);
+      candidate.counterClockwiseValue = String(counterClockwise, 9);
+    }
+  } else {
+    return presetDeviceSettingInvalid(error);
+  }
+  return true;
 }
 
 bool angleSettingFromJson(JsonObjectConst object, AngleSetting& candidate,
@@ -2220,8 +2438,18 @@ void handleImportDevicePreset() {
                    "E_PRESET_FORMAT_INVALID: 対応するChainOSC Device Presetではありません。`format`が`ChainOSC-device-preset`であることを確認してください。"));
     return;
   }
-  if (!root["schemaVersion"].is<int>() ||
-      root["schemaVersion"].as<int>() != DEVICE_PRESET_SCHEMA_VERSION) {
+  const int presetTypeForSchema = root["deviceType"].is<int>()
+                                      ? root["deviceType"].as<int>()
+                                      : -1;
+  const int presetSchemaVersion = root["schemaVersion"].is<int>()
+                                      ? root["schemaVersion"].as<int>()
+                                      : -1;
+  const bool encoderV2Preset =
+      format == DEVICE_PRESET_FORMAT_NAME &&
+      presetTypeForSchema == CHAIN_ENCODER_DEVICE_TYPE &&
+      presetSchemaVersion == DEVICE_PRESET_SCHEMA_VERSION_V2;
+  if (presetSchemaVersion != DEVICE_PRESET_SCHEMA_VERSION &&
+      !encoderV2Preset) {
     server.send(400, "text/plain; charset=utf-8",
                 tr("E_PRESET_SCHEMA_UNSUPPORTED: The preset `schemaVersion` is missing or unsupported. Use a preset exported by a compatible product version.",
                    "E_PRESET_SCHEMA_UNSUPPORTED: プリセットの`schemaVersion`がないか、対応していません。対応するバージョンの製品からエクスポートしたプリセットを使用してください。"));
@@ -2253,7 +2481,8 @@ void handleImportDevicePreset() {
   }
   const bool legacyPreset = format == LEGACY_DEVICE_PRESET_FORMAT_NAME;
   String error;
-  if (!validateDevicePreset(root, presetType, legacyPreset, error)) {
+  if (!encoderV2Preset &&
+      !validateDevicePreset(root, presetType, legacyPreset, error)) {
     server.send(400, "text/plain; charset=utf-8",
                 String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
     return;
@@ -2261,11 +2490,20 @@ void handleImportDevicePreset() {
   if (legacyPreset) normalizeLegacyPresetTypes(document.as<JsonObject>(), presetType);
   bool saved = false;
   if (selected.encoder) {
-    EncoderSetting candidate = *selected.encoder;
-    if (!encoderSettingFromJson(root, candidate, false, error)) {
+    EncoderSetting candidate;
+    candidate.identity = selected.encoder->identity;
+    candidate.displayName = selected.encoder->displayName;
+    candidate.connectedPortMask = selected.encoder->connectedPortMask;
+    const bool parsed = encoderV2Preset
+                            ? encoderSettingFromPresetV2(root, candidate, error)
+                            : encoderSettingFromJson(root, candidate, false,
+                                                     error);
+    if (!parsed) {
       server.send(400, "text/plain; charset=utf-8", String(tr("Invalid preset: ", "プリセットが正しくありません: ")) + error);
       return;
     }
+    if (!encoderV2Preset)
+      candidate.settingsModel = ENCODER_SETTINGS_LEGACY;
     saved = encoderSettingsSave(candidate);
   } else if (selected.angle) {
     AngleSetting candidate = *selected.angle;
