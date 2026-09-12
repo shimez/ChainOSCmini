@@ -144,7 +144,8 @@ function fieldError(input,error){let small=input.parentNode.querySelector('.nume
 function validateDeviceNumber(input){const name=input.name||'',label=(input.parentNode.querySelector('label')||{}).textContent||tx('Value','値');if(/(enc_(abs_min|abs_max|scale|out_min|out_max)|angle_out_(min|max)|joy_out_(min|max)|tof_out_(min|max))_/.test(name))return fieldError(input,float32Error(input.value,label));let min,max;if(name.startsWith('joy_deadband_')){min=1;max=254}else if(name.startsWith('tof_deadband_')){min=1;max=2000}else if(name.startsWith('tof_max_')){min=31;max=2000}else if(name.startsWith('angle_deadband_')){min=1;const select=input.closest('.device').querySelector('[name^=angle_12bit_]');max=select&&select.value==='0'?255:4095}else return true;const text=input.value.trim(),number=Number(text),error=/^[+-]?\d+$/.test(text)&&Number.isSafeInteger(number)&&number>=min&&number<=max?'':tx(label+' must be an integer from '+min+' to '+max,label+'は'+min+'～'+max+'の整数で入力してください');return fieldError(input,error)}
 function updateAngleResolution(select){const input=select.closest('.device').querySelector('[name^=angle_deadband_]');if(input)validateDeviceNumber(input)}
 function sequenceFieldError(input,error){let small=input.parentNode.querySelector('.sequence-error');if(!small){small=document.createElement('small');small.className='sequence-error err';input.parentNode.appendChild(small)}small.textContent=error;input.classList.toggle('invalid',!!error);return !error}function validateSequence(box){let fields=box.querySelectorAll('input[type=number]'),valid=true;if(fields.length<3)return true;let start=Number(fields[0].value),end=Number(fields[1].value),step=Number(fields[2].value),startError=float32Error(fields[0].value,tx('Start','開始値')),endError=float32Error(fields[1].value,tx('End','終了値')),stepError=float32Error(fields[2].value,tx('Step','増減量'));if(!sequenceFieldError(fields[0],startError))valid=false;if(!sequenceFieldError(fields[1],endError))valid=false;if(!stepError&&step===0)stepError=tx('Step must not be zero','増減量には0を指定できません');if(!startError&&!endError&&!stepError&&((start<end&&step<0)||(start>end&&step>0)))stepError=tx('Step must advance from Start toward End','増減量が開始値から終了値へ進む方向になっていません');if(!sequenceFieldError(fields[2],stepError))valid=false;return valid}
-function limitAndValidate(input,max){limitBytes(input,max);validateInput(input)}function validateSettingsForm(form){let valid=true;form.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(input=>{if(!validateInput(input))valid=false});form.querySelectorAll('.device input[type=number]').forEach(input=>{if(!input.closest('.sequence-card')&&!validateDeviceNumber(input))valid=false});form.querySelectorAll('.sequence-card').forEach(box=>{if(!validateSequence(box))valid=false});if(!valid){const bad=form.querySelector('.invalid');if(bad)bad.focus();alert(tx('Please correct the settings highlighted in red.','赤く表示された設定項目を修正してください。'))}return valid}
+function validateEncoderV2(card){if(!card)return true;let valid=true,mode=card.querySelector('.encoder-v2-rotation-mode').value,type=card.querySelector('.encoder-v2-output-type').value;if(mode==='0'){const min=card.querySelector('.encoder-v2-output-min'),max=card.querySelector('.encoder-v2-output-max'),steps=card.querySelector('.encoder-v2-range-steps');let minError=float32Error(min.value,tx('Minimum','最小値')),maxError=float32Error(max.value,tx('Maximum','最大値')),stepsError='';if(!minError&&!maxError&&!(Number(min.value)<Number(max.value)))maxError=tx('Minimum must be less than Maximum','最小値は最大値より小さくしてください');if(!/^[+]?\d+$/.test(steps.value.trim())||Number(steps.value)<1||Number(steps.value)>65535)stepsError=tx('Range Steps must be an integer from 1 to 65535','範囲ステップ数は1～65535の整数で入力してください');if(type==='1'&&!minError&&!maxError){const inputs=[min,max],errors=[minError,maxError];inputs.forEach((input,index)=>{const number=Number(input.value),rounded=Math.round(Math.abs(number))*Math.sign(number);if(rounded<-2147483648||rounded>2147483647)errors[index]=tx('Mapped Int values must fit in OSC int32','変換後のInt値はOSC int32の範囲内にしてください')});minError=errors[0];maxError=errors[1]}if(!fieldError(min,minError))valid=false;if(!fieldError(max,maxError))valid=false;if(!fieldError(steps,stepsError))valid=false}else{for(const input of card.querySelectorAll('.encoder-v2-direction-value input')){let error='',value=input.value.trim();if(bytes(input.value)>128)error=tx('Keep the value within 128 bytes in UTF-8','値はUTF-8で128バイト以内にしてください');else if(type==='0')error=float32Error(value,tx('Value','値'));else if(type==='1'){if(!/^[+-]?\d+$/.test(value))error=tx('Enter a decimal OSC int32','OSC int32の10進整数を入力してください');else{const number=BigInt(value);if(number<-2147483648n||number>2147483647n)error=tx('Int must be between -2147483648 and 2147483647','Intは-2147483648～2147483647の範囲で入力してください')}}if(!fieldError(input,error))valid=false}}return valid}
+function limitAndValidate(input,max){limitBytes(input,max);validateInput(input)}function validateSettingsForm(form){let valid=true;form.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(input=>{if(!validateInput(input))valid=false});form.querySelectorAll('.device input[type=number]').forEach(input=>{if(!input.closest('.sequence-card')&&!input.closest('.encoder-v2')&&!validateDeviceNumber(input))valid=false});form.querySelectorAll('.sequence-card').forEach(box=>{if(!validateSequence(box))valid=false});form.querySelectorAll('.encoder-v2').forEach(card=>{if(!validateEncoderV2(card))valid=false});if(!valid){const bad=form.querySelector('.invalid');if(bad)bad.focus();alert(tx('Please correct the settings highlighted in red.','赤く表示された設定項目を修正してください。'))}return valid}
 function confirmEncoderV2Migrations(form){for(const migration of form.querySelectorAll('input[name^="enc_edit_model_"][value="migration_v2"]')){const index=migration.name.substring('enc_edit_model_'.length);if(!form.querySelector('[name="enc_migration_confirm_'+index+'"]:checked')){alert(tx('Confirm the semantic differences before saving the v2 candidate.','v2候補を保存する前に、動作上の違いを確認してください。'));return false}}return true}
 function markDirty(event){if(event&&event.target&&event.target.matches('input[type="file"]'))return;const status=document.getElementById('dirty-status');if(status)status.hidden=false}
 function showToast(message){const toast=document.getElementById('save-toast');toast.textContent=message;toast.hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.hidden=true,3000)}
@@ -281,9 +282,16 @@ String encoderV2DirectionValueJson(const String& value, ValueType type) {
   }
   char* end = nullptr;
   const float parsed = strtof(value.c_str(), &end);
-  return end != value.c_str() && *end == '\0' && isfinite(parsed)
-             ? String(parsed, 9)
-             : String("0.000000000");
+  if (end == value.c_str() || *end != '\0' || !isfinite(parsed)) return "0";
+  char text[24];
+  snprintf(text, sizeof(text), "%.9g", static_cast<double>(parsed));
+  return String(text);
+}
+
+String encoderV2FloatJson(float value) {
+  char text[24];
+  snprintf(text, sizeof(text), "%.9g", static_cast<double>(value));
+  return String(text);
 }
 
 String keySettingJson(const KeySetting& setting, bool includeIdentity) {
@@ -338,8 +346,8 @@ String encoderSettingJson(const EncoderSetting& setting, bool includeIdentity) {
                 String(setting.wrapAround ? "true" : "false") +
                 ",\"clockwiseIncreases\":" +
                 String(setting.clockwiseIncreases ? "true" : "false") +
-                ",\"outputMin\":" + String(setting.outputMin, 9) +
-                ",\"outputMax\":" + String(setting.outputMax, 9);
+                ",\"outputMin\":" + encoderV2FloatJson(setting.outputMin) +
+                ",\"outputMax\":" + encoderV2FloatJson(setting.outputMax);
     } else {
       output += ",\"clockwiseValue\":" +
                 encoderV2DirectionValueJson(setting.clockwiseValue,
@@ -1043,16 +1051,20 @@ bool encoderSettingFromPresetV2(JsonObjectConst object,
         !encoder["outputMax"].is<float>())
       return presetFieldTypeInvalid(error);
     const int rangeSteps = encoder["rangeSteps"].as<int>();
-    if (rangeSteps < 1 || rangeSteps > 65535 ||
-        candidate.outputType == TYPE_STRING)
+    if (rangeSteps < 1 || rangeSteps > 65535)
       return presetDeviceSettingInvalid(error);
     candidate.rotationMode = ENCODER_ROTATION_AMOUNT;
     candidate.rangeSteps = static_cast<uint16_t>(rangeSteps);
     candidate.wrapAround = encoder["wrap"].as<bool>();
     candidate.clockwiseIncreases = encoder["clockwiseIncreases"].as<bool>();
-    candidate.outputMin = encoder["outputMin"].as<float>();
-    candidate.outputMax = encoder["outputMax"].as<float>();
-    if (!isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) ||
+    const double outputMin = encoder["outputMin"].as<double>();
+    const double outputMax = encoder["outputMax"].as<double>();
+    candidate.outputMin = static_cast<float>(outputMin);
+    candidate.outputMax = static_cast<float>(outputMax);
+    if (!isfinite(outputMin) || !isfinite(outputMax) ||
+        !isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) ||
+        (outputMin != 0.0 && candidate.outputMin == 0.0f) ||
+        (outputMax != 0.0 && candidate.outputMax == 0.0f) ||
         !(candidate.outputMin < candidate.outputMax))
       return presetDeviceSettingInvalid(error);
   } else if (rotationMode == "direction") {
@@ -1086,13 +1098,24 @@ bool encoderSettingFromPresetV2(JsonObjectConst object,
       if (!encoder["clockwiseValue"].is<float>() ||
           !encoder["counterClockwiseValue"].is<float>())
         return presetFieldTypeInvalid(error);
-      const float clockwise = encoder["clockwiseValue"].as<float>();
-      const float counterClockwise =
-          encoder["counterClockwiseValue"].as<float>();
-      if (!isfinite(clockwise) || !isfinite(counterClockwise))
+      const double clockwiseSource = encoder["clockwiseValue"].as<double>();
+      const double counterClockwiseSource =
+          encoder["counterClockwiseValue"].as<double>();
+      const float clockwise = static_cast<float>(clockwiseSource);
+      const float counterClockwise = static_cast<float>(counterClockwiseSource);
+      if (!isfinite(clockwiseSource) || !isfinite(counterClockwiseSource) ||
+          !isfinite(clockwise) || !isfinite(counterClockwise) ||
+          (clockwiseSource != 0.0 && clockwise == 0.0f) ||
+          (counterClockwiseSource != 0.0 && counterClockwise == 0.0f))
         return presetDeviceSettingInvalid(error);
-      candidate.clockwiseValue = String(clockwise, 9);
-      candidate.counterClockwiseValue = String(counterClockwise, 9);
+      char clockwiseText[24];
+      char counterClockwiseText[24];
+      snprintf(clockwiseText, sizeof(clockwiseText), "%.9g",
+               static_cast<double>(clockwise));
+      snprintf(counterClockwiseText, sizeof(counterClockwiseText), "%.9g",
+               static_cast<double>(counterClockwise));
+      candidate.clockwiseValue = clockwiseText;
+      candidate.counterClockwiseValue = counterClockwiseText;
     }
   } else {
     return presetDeviceSettingInvalid(error);
@@ -1435,17 +1458,17 @@ void appendEncoderCard(String& html, const EncoderSetting& persistedSetting,
     html += "<div class='encoder-migration-panel'><strong>" + String(tr("Legacy Encoder settings", "旧形式のエンコーダー設定")) + "</strong><p>" + String(tr("Ordinary Save keeps the Legacy model.", "通常の保存では旧形式のまま維持されます。")) + "</p><button type='button' class='encoder-migration-action' onclick=\"startEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Migrate to v2 settings", "v2設定へ移行する")) + "</button></div>";
   }
   html += "<input type='hidden' name='enc_edit_model_" + idx + "' value='" + String(candidateReady ? "migration_v2" : (showV2 ? "v2" : "legacy")) + "'>";
-  html += "<div class='encoder-grid" + String(showV2 ? (setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " encoder-v2-direction" : "") : " encoder-legacy-grid") + "'>";
+  html += "<div class='encoder-grid" + String(showV2 ? (setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " encoder-v2 encoder-v2-direction" : " encoder-v2") : " encoder-legacy-grid") + "'>";
   html += "<div class='encoder-address address-field'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='enc_rotation_" + idx + "' value='" + htmlEscape(setting.rotationAddress) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
   if (showV2) {
-    html += "<div class='encoder-v2-mode'><label>" + String(tr("Mode", "モード")) + "</label><select name='enc_v2_mode_" + idx + "' onchange='updateEncoderV2Mode(this)'><option value='0'" + String(setting.rotationMode == ENCODER_ROTATION_AMOUNT ? " selected" : "") + ">" + tr("Amount", "回転量") + "</option><option value='1'" + String(setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " selected" : "") + ">" + tr("Direction", "回転方向") + "</option></select></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Minimum", "最小値")) + "</label><input type='number' step='any' name='enc_v2_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Maximum", "最大値")) + "</label><input type='number' step='any' name='enc_v2_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div>";
+    html += "<div class='encoder-v2-mode'><label>" + String(tr("Mode", "モード")) + "</label><select class='encoder-v2-rotation-mode' name='enc_v2_mode_" + idx + "' onchange='updateEncoderV2Mode(this);validateEncoderV2(this.closest(\".encoder-v2\"))'><option value='0'" + String(setting.rotationMode == ENCODER_ROTATION_AMOUNT ? " selected" : "") + ">" + tr("Amount", "回転量") + "</option><option value='1'" + String(setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " selected" : "") + ">" + tr("Direction", "回転方向") + "</option></select></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Minimum", "最小値")) + "</label><input class='encoder-v2-output-min' type='number' step='any' name='enc_v2_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Maximum", "最大値")) + "</label><input class='encoder-v2-output-max' type='number' step='any' name='enc_v2_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div>";
     html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Beyond Minimum / Maximum", "最小値・最大値の先")) + "</label><select name='enc_v2_wrap_" + idx + "'><option value='1'" + String(setting.wrapAround ? " selected" : "") + ">" + tr("Wrap", "🔄ループする") + "</option><option value='0'" + String(!setting.wrapAround ? " selected" : "") + ">" + tr("Stop", "🛑停止する") + "</option></select></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Range Steps", "範囲ステップ数")) + "</label><input type='number' min='0' max='65535' name='enc_v2_steps_" + idx + "' value='" + String(setting.rangeSteps) + "'></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Range Steps", "範囲ステップ数")) + "</label><input class='encoder-v2-range-steps' type='number' min='0' max='65535' name='enc_v2_steps_" + idx + "' value='" + String(setting.rangeSteps) + "'></div>";
     html += "<div class='encoder-v2-direction-value'><label>" + String(tr("↪️ Counter-clockwise Value", "↪️反時計回りの値")) + "</label><input maxlength='128' name='enc_v2_ccw_value_" + idx + "' value='" + htmlEscape(setting.counterClockwiseValue) + "'></div>";
     html += "<div class='encoder-v2-direction-value'><label>" + String(tr("↩️ Clockwise Value", "↩️時計回りの値")) + "</label><input maxlength='128' name='enc_v2_cw_value_" + idx + "' value='" + htmlEscape(setting.clockwiseValue) + "'></div>";
-    html += "<div><label>" + String(tr("Type", "型")) + "</label>" + typeSelectHtml("enc_v2_type_" + idx, setting.outputType) + "</div>";
+    html += "<div><label>" + String(tr("Type", "型")) + "</label><select class='type encoder-v2-output-type' name='enc_v2_type_" + idx + "' onchange='validateEncoderV2(this.closest(\".encoder-v2\"))'><option value='0'" + String(setting.outputType == TYPE_FLOAT ? " selected" : "") + ">Float</option><option value='1'" + String(setting.outputType == TYPE_INT ? " selected" : "") + ">Int</option><option value='2'" + String(setting.outputType == TYPE_STRING ? " selected" : "") + ">String</option></select></div>";
     html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Rotation Direction", "回転方向")) + "</label><select name='enc_v2_clockwise_" + idx + "'><option value='0'" + String(!setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Counter-clockwise increases", "↪️反時計回りで大きくなる") + "</option><option value='1'" + String(setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Clockwise increases", "↩️時計回りで大きくなる") + "</option></select></div>";
     html += "</div></div>";
   } else {

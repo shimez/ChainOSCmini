@@ -2,6 +2,8 @@
 
 #include <Preferences.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <math.h>
 
 #include "device_file_storage.h"
@@ -91,6 +93,71 @@ bool sameSetting(const EncoderSetting& left, const EncoderSetting& right) {
   for (uint8_t i = 0; i < left.releaseMessageCount; ++i)
     if (!sameMessage(left.releaseMessages[i], right.releaseMessages[i])) return false;
   return true;
+}
+
+bool validValueType(ValueType type) {
+  return type >= TYPE_FLOAT && type <= TYPE_STRING;
+}
+
+bool parseInt32Strict(const String& text, int32_t& value) {
+  if (text.isEmpty()) return false;
+  size_t index = (text[0] == '+' || text[0] == '-') ? 1 : 0;
+  if (index == text.length()) return false;
+  for (; index < text.length(); ++index)
+    if (!isdigit(static_cast<unsigned char>(text[index]))) return false;
+  errno = 0;
+  char* end = nullptr;
+  const long parsed = strtol(text.c_str(), &end, 10);
+  if (errno == ERANGE || end == text.c_str() || *end != '\0' ||
+      parsed < INT32_MIN || parsed > INT32_MAX)
+    return false;
+  value = static_cast<int32_t>(parsed);
+  return true;
+}
+
+bool parseFloat32Strict(const String& text, float& value) {
+  if (text.isEmpty()) return false;
+  errno = 0;
+  char* end = nullptr;
+  const float parsed = strtof(text.c_str(), &end);
+  if (errno == ERANGE || end == text.c_str() || *end != '\0' ||
+      !isfinite(parsed))
+    return false;
+  value = parsed;
+  return true;
+}
+
+bool amountOutputIsValid(const EncoderSetting& candidate) {
+  if (!validValueType(candidate.outputType) ||
+      !isfinite(candidate.outputMin) || !isfinite(candidate.outputMax) ||
+      !(candidate.outputMin < candidate.outputMax) ||
+      !isfinite(candidate.outputMax - candidate.outputMin))
+    return false;
+  if (candidate.outputType != TYPE_INT) return true;
+  const double roundedMin = round(static_cast<double>(candidate.outputMin));
+  const double roundedMax = round(static_cast<double>(candidate.outputMax));
+  return roundedMin >= static_cast<double>(INT32_MIN) &&
+         roundedMin <= static_cast<double>(INT32_MAX) &&
+         roundedMax >= static_cast<double>(INT32_MIN) &&
+         roundedMax <= static_cast<double>(INT32_MAX);
+}
+
+bool directionOutputIsValid(const EncoderSetting& candidate) {
+  if (!validValueType(candidate.outputType) ||
+      candidate.clockwiseValue.length() > 128 ||
+      candidate.counterClockwiseValue.length() > 128)
+    return false;
+  if (candidate.outputType == TYPE_STRING) return true;
+  if (candidate.outputType == TYPE_INT) {
+    int32_t clockwise = 0;
+    int32_t counterClockwise = 0;
+    return parseInt32Strict(candidate.clockwiseValue, clockwise) &&
+           parseInt32Strict(candidate.counterClockwiseValue, counterClockwise);
+  }
+  float clockwise = 0;
+  float counterClockwise = 0;
+  return parseFloat32Strict(candidate.clockwiseValue, clockwise) &&
+         parseFloat32Strict(candidate.counterClockwiseValue, counterClockwise);
 }
 
 bool loadLegacySetting(const String& identity, EncoderSetting& setting, bool& found) {
@@ -272,11 +339,9 @@ bool encoderSettingsSave(const EncoderSetting& candidate) {
         candidate.rotationMode > ENCODER_ROTATION_DIRECTION ||
         candidate.rangeSteps < 1 || candidate.pushMode < MODE_PRESS_RELEASE ||
         candidate.pushMode > MODE_SEQUENCE ||
-        candidate.clockwiseValue.length() > 128 ||
-        candidate.counterClockwiseValue.length() > 128 ||
-        (candidate.rotationMode == ENCODER_ROTATION_AMOUNT &&
-         (!(candidate.outputMin < candidate.outputMax) ||
-          candidate.outputType == TYPE_STRING)))))
+        (candidate.rotationMode == ENCODER_ROTATION_AMOUNT
+             ? !amountOutputIsValid(candidate)
+             : !directionOutputIsValid(candidate)))))
     return false;
   for (uint8_t i = 0; i < candidate.pressMessageCount; ++i)
     if (!validAddress(candidate.pressMessages[i].address)) return false;
@@ -338,7 +403,7 @@ bool encoderSettingsBuildV2MigrationCandidate(const EncoderSetting& legacy,
 bool encoderSettingsCanLosslesslyMigrate(const EncoderSetting& legacy) {
   if (legacy.settingsModel != ENCODER_SETTINGS_LEGACY || legacy.sendIncrement ||
       legacy.wrapAround || legacy.absoluteInputMin != 0.0f ||
-      !(legacy.outputMin < legacy.outputMax) || legacy.outputType == TYPE_STRING)
+      !(legacy.outputMin < legacy.outputMax))
     return false;
   const float span = legacy.absoluteInputMax - legacy.absoluteInputMin;
   return isfinite(span) && floorf(span) == span && span >= 1.0f && span <= 65535.0f;

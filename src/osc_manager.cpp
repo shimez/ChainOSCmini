@@ -17,6 +17,11 @@ namespace {
 String targetHost = "192.168.1.100";
 uint16_t targetPort = 9000;
 
+String encoderAmountString(float value) {
+  const String text(value, 3);
+  return text == "-0.000" ? String("0.000") : text;
+}
+
 String uidText(const uint8_t* uid, size_t length) {
   String text;
   text.reserve(length * 2);
@@ -170,11 +175,15 @@ void sendEncoderRotationValue(EncoderSetting& setting, int16_t absoluteValue,
       const float ratio = static_cast<float>(next) / static_cast<float>(setting.rangeSteps);
       const float mapped = setting.outputMin + ratio * (setting.outputMax - setting.outputMin);
       if (setting.outputType == TYPE_INT) {
-        const int value = static_cast<int>(lroundf(mapped));
+        const int32_t value = static_cast<int32_t>(lroundf(mapped));
         valueText = String(value);
         OscWiFi.send(targetHost.c_str(), targetPort, setting.rotationAddress.c_str(), value);
+      } else if (setting.outputType == TYPE_STRING) {
+        valueText = encoderAmountString(mapped);
+        OscWiFi.send(targetHost.c_str(), targetPort,
+                     setting.rotationAddress.c_str(), valueText.c_str());
       } else {
-        valueText = String(mapped, 7);
+        valueText = String(mapped, 3);
         OscWiFi.send(targetHost.c_str(), targetPort, setting.rotationAddress.c_str(), mapped);
       }
     }
