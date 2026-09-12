@@ -290,6 +290,7 @@ bool encoderSettingsSave(const EncoderSetting& candidate) {
   *destination = candidate;
   destination->connectedPortMask = portMask;
   destination->boundedAbsoluteInitialized = false;
+  destination->logicalPositionInitialized = false;
   keySettingsNormalizeSequence(destination->clickSequence);
   Serial.printf("[ChainOSCmini][ENCCFG] saved identity=%s mode=%u press=%u release=%u\n",
                 candidate.identity.c_str(),

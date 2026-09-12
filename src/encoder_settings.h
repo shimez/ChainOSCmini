@@ -35,6 +35,8 @@ struct EncoderSetting {
   String clockwiseValue = "0.05";
   String counterClockwiseValue = "-0.05";
   KeyMode pushMode = MODE_PRESS_RELEASE;
+  int32_t logicalPosition = 0;
+  bool logicalPositionInitialized = false;
   KeyMode clickMode = MODE_PRESS_RELEASE;
   KeyOscMessage pressMessages[MAX_KEY_OSC_MESSAGES];
   KeyOscMessage releaseMessages[MAX_KEY_OSC_MESSAGES];
