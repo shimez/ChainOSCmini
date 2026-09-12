@@ -53,22 +53,38 @@ bool sameMessage(const KeyOscMessage& left, const KeyOscMessage& right) {
 
 bool sameSetting(const EncoderSetting& left, const EncoderSetting& right) {
   if (left.identity != right.identity || left.displayName != right.displayName ||
+      left.settingsModel != right.settingsModel ||
       left.rotationAddress != right.rotationAddress ||
-      left.sendIncrement != right.sendIncrement ||
-      left.wrapAround != right.wrapAround ||
-      fabsf(left.absoluteInputMin - right.absoluteInputMin) > 0.00001f ||
-      fabsf(left.absoluteInputMax - right.absoluteInputMax) > 0.00001f ||
-      fabsf(left.incrementScale - right.incrementScale) > 0.00001f ||
-      fabsf(left.outputMin - right.outputMin) > 0.00001f ||
-      fabsf(left.outputMax - right.outputMax) > 0.00001f ||
-      left.outputType != right.outputType || left.clickMode != right.clickMode ||
+      left.outputMin != right.outputMin || left.outputMax != right.outputMax ||
+      left.outputType != right.outputType ||
       left.pressMessageCount != right.pressMessageCount ||
-      left.releaseMessageCount != right.releaseMessageCount ||
-      left.clickSequence.address != right.clickSequence.address ||
-      left.clickSequence.valueType != right.clickSequence.valueType ||
-      fabsf(left.clickSequence.start - right.clickSequence.start) > 0.00001f ||
-      fabsf(left.clickSequence.end - right.clickSequence.end) > 0.00001f ||
-      fabsf(left.clickSequence.step - right.clickSequence.step) > 0.00001f)
+      left.releaseMessageCount != right.releaseMessageCount)
+    return false;
+  if (left.settingsModel == ENCODER_SETTINGS_LEGACY &&
+      (left.sendIncrement != right.sendIncrement ||
+       left.wrapAround != right.wrapAround ||
+       fabsf(left.absoluteInputMin - right.absoluteInputMin) > 0.00001f ||
+       fabsf(left.absoluteInputMax - right.absoluteInputMax) > 0.00001f ||
+       fabsf(left.incrementScale - right.incrementScale) > 0.00001f ||
+       left.clickMode != right.clickMode ||
+       left.clickSequence.address != right.clickSequence.address ||
+       left.clickSequence.valueType != right.clickSequence.valueType ||
+       fabsf(left.clickSequence.start - right.clickSequence.start) > 0.00001f ||
+       fabsf(left.clickSequence.end - right.clickSequence.end) > 0.00001f ||
+       fabsf(left.clickSequence.step - right.clickSequence.step) > 0.00001f))
+    return false;
+  if (left.settingsModel == ENCODER_SETTINGS_V2 &&
+      (left.rotationMode != right.rotationMode ||
+       left.rangeSteps != right.rangeSteps || left.wrapAround != right.wrapAround ||
+       left.clockwiseIncreases != right.clockwiseIncreases ||
+       left.clockwiseValue != right.clockwiseValue ||
+       left.counterClockwiseValue != right.counterClockwiseValue ||
+       left.pushMode != right.pushMode ||
+       left.clickSequence.address != right.clickSequence.address ||
+       left.clickSequence.valueType != right.clickSequence.valueType ||
+       fabsf(left.clickSequence.start - right.clickSequence.start) > 0.00001f ||
+       fabsf(left.clickSequence.end - right.clickSequence.end) > 0.00001f ||
+       fabsf(left.clickSequence.step - right.clickSequence.step) > 0.00001f))
     return false;
   for (uint8_t i = 0; i < left.pressMessageCount; ++i)
     if (!sameMessage(left.pressMessages[i], right.pressMessages[i])) return false;
@@ -250,7 +266,17 @@ bool encoderSettingsSave(const EncoderSetting& candidate) {
           MAX_KEY_OSC_MESSAGES || !isfinite(candidate.absoluteInputMin) ||
       !isfinite(candidate.absoluteInputMax) ||
       !isfinite(candidate.incrementScale) || !isfinite(candidate.outputMin) ||
-      !isfinite(candidate.outputMax))
+      !isfinite(candidate.outputMax) ||
+      (candidate.settingsModel == ENCODER_SETTINGS_V2 &&
+       (candidate.rotationMode < ENCODER_ROTATION_AMOUNT ||
+        candidate.rotationMode > ENCODER_ROTATION_DIRECTION ||
+        candidate.rangeSteps < 1 || candidate.pushMode < MODE_PRESS_RELEASE ||
+        candidate.pushMode > MODE_SEQUENCE ||
+        candidate.clockwiseValue.length() > 128 ||
+        candidate.counterClockwiseValue.length() > 128 ||
+        (candidate.rotationMode == ENCODER_ROTATION_AMOUNT &&
+         (!(candidate.outputMin < candidate.outputMax) ||
+          candidate.outputType == TYPE_STRING)))))
     return false;
   for (uint8_t i = 0; i < candidate.pressMessageCount; ++i)
     if (!validAddress(candidate.pressMessages[i].address)) return false;
