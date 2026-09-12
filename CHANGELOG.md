@@ -6,6 +6,13 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-09-13
+
+### Changed
+
+- Legacy Encoder設定からv2候補へ移行する際の注意事項をM5ChainOSCおよびChainOSCPadと同じ条件別表示へ統一
+- Legacy増分、ループ、絶対値入力オフセット、未完成の範囲ステップ数、不正な出力範囲について、該当する注意だけを表示
+
 ## [1.4.5] - 2026-09-13
 
 ### Added
@@ -246,7 +253,8 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.5...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.6...HEAD
+[1.4.6]: https://github.com/shimez/ChainOSCmini/compare/v1.4.5...v1.4.6
 [1.4.5]: https://github.com/shimez/ChainOSCmini/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/shimez/ChainOSCmini/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/shimez/ChainOSCmini/compare/v1.4.2...v1.4.3

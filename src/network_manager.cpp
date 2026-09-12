@@ -1453,7 +1453,20 @@ void appendEncoderCard(String& html, const EncoderSetting& persistedSetting,
   html += "<div class='key-grid'><div><label>" + String(tr("Device Name", "デバイス名")) + "</label><input name='display_name_" + idx + "' maxlength='64' required value='" + htmlEscape(setting.displayName) + "'></div></div>";
   html += "<div class='encoder-rotation'><h3>" + String(tr("Encoder Rotation", "エンコーダー回転")) + "</h3>";
   if (candidateReady) {
-    html += "<div class='encoder-migration-panel'><strong>" + String(tr("Notes about migrating to v2", "v2形式への移行に関する注意事項")) + "</strong><p>" + String(tr("Review the candidate values before saving as v2.", "v2として保存する前に候補値を確認してください。")) + "</p><label><input type='checkbox' name='enc_migration_confirm_" + idx + "' value='1'>" + String(tr("I understand the differences and want to save as v2.", "動作上の違いを理解し、v2として保存します。")) + "</label><button type='button' class='encoder-migration-action encoder-migration-cancel' onclick=\"cancelEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Return to Legacy settings", "旧形式の設定へ戻る")) + "</button></div>";
+    html += "<div class='encoder-migration-panel'><strong>" + String(tr("Notes about migrating to v2", "v2形式への移行に関する注意事項")) + "</strong><ul>";
+    if (persistedSetting.sendIncrement) {
+      html += "<li>" + String(tr("Legacy Increment is represented as v2 Direction. Confirm both values.", "旧形式の増分をv2の回転方向で表現しています。両方の値を確認してください。")) + "</li>";
+    } else {
+      if (persistedSetting.wrapAround)
+        html += "<li>" + String(tr("Legacy Wrap returns to the minimum without sending the maximum; v2 sends the maximum before returning to the minimum (runtime behavior changes)", "旧形式のループでは最大値を送信せず最小値に戻りますが、v2では最大値を送信してから最小値に戻ります（動作が変わります）")) + "</li>";
+      if (persistedSetting.absoluteInputMin != 0.0f)
+        html += "<li>" + String(tr("The Legacy absolute-input offset is not represented in v2 Amount", "旧形式の絶対値入力オフセットはv2回転量では表現されません")) + "</li>";
+      if (setting.rangeSteps == 0)
+        html += "<li>" + String(tr("Enter Range Steps from 1 to 65535 before saving.", "保存前に範囲ステップ数を1～65535で入力してください。")) + "</li>";
+    }
+    if (setting.rotationMode == ENCODER_ROTATION_AMOUNT && !(setting.outputMin < setting.outputMax))
+      html += "<li>" + String(tr("Set Output Min lower than Output Max before saving.", "保存前に最小値を最大値より小さく設定してください。")) + "</li>";
+    html += "</ul><label><input type='checkbox' name='enc_migration_confirm_" + idx + "' value='1'>" + String(tr("I understand the differences and want to save as v2.", "動作上の違いを理解し、v2として保存します。")) + "</label><button type='button' class='encoder-migration-action encoder-migration-cancel' onclick=\"cancelEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Return to Legacy settings", "旧形式の設定へ戻る")) + "</button></div>";
   } else if (setting.settingsModel == ENCODER_SETTINGS_LEGACY) {
     html += "<div class='encoder-migration-panel'><strong>" + String(tr("Legacy Encoder settings", "旧形式のエンコーダー設定")) + "</strong><p>" + String(tr("Ordinary Save keeps the Legacy model.", "通常の保存では旧形式のまま維持されます。")) + "</p><button type='button' class='encoder-migration-action' onclick=\"startEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Migrate to v2 settings", "v2設定へ移行する")) + "</button></div>";
   }
