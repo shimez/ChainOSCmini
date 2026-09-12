@@ -325,11 +325,11 @@ bool encoderSettingsBuildV2MigrationCandidate(const EncoderSetting& legacy,
     return true;
   }
   const float span = legacy.absoluteInputMax - legacy.absoluteInputMin;
-  if (!isfinite(span) || floorf(span) != span || span < 1.0f || span > 65535.0f ||
-      !(legacy.outputMin < legacy.outputMax) || legacy.outputType == TYPE_STRING)
-    return false;
   candidate.rotationMode = ENCODER_ROTATION_AMOUNT;
-  candidate.rangeSteps = static_cast<uint16_t>(span);
+  candidate.rangeSteps = isfinite(span) && floorf(span) == span && span >= 1.0f &&
+                                 span <= 65535.0f
+                             ? static_cast<uint16_t>(span)
+                             : 0;
   candidate.wrapAround = legacy.wrapAround;
   candidate.clockwiseIncreases = true;
   return true;
