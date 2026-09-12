@@ -126,7 +126,7 @@ button{width:100%;padding:12px;background:#28a745;color:#fff;border:none;border-
 .event-tabs{display:flex;gap:4px;padding:4px;background:#edf0f4;border-radius:9px}.event-tab{margin:0;background:transparent;color:#697586}.event-tab.active{background:#fff;color:#18212f;box-shadow:0 1px 4px #bbb}
 .event-panel{margin-top:12px}.osc-list{display:grid;gap:10px}.osc-row{display:grid;grid-template-columns:62px minmax(180px,1fr) 115px minmax(100px,.55fr) 68px;gap:9px;align-items:start;padding:12px;border:1px solid #dce2ea;border-radius:10px;background:#fbfcfe}.osc-row label{margin-top:0}.order{display:flex;gap:3px;align-self:center}.mv{width:auto;margin:0;padding:7px;background:#fff;color:#526075;border:1px solid #dce2ea}.remove-msg{width:auto;margin-top:22px;padding:9px;background:#fff3f4;color:#c73c4a;border:1px solid #efc6cb}.add-msg{background:#f7faff;color:#3267e3;border:1px dashed #9db6ef}.add-msg:disabled{background:#eee;color:#888}.empty{display:none;padding:18px;text-align:center;color:#697586;border:1px dashed #dce2ea;border-radius:9px}.osc-list:empty+.empty{display:block}
 .sequence-card{margin-top:12px;padding:15px;border:1px solid #dce2ea;border-radius:10px;background:#fbfcfe}.sequence-card h3{margin-top:0}.seq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.seq-address{grid-column:1/-1}
-.encoder-rotation{margin-top:12px;padding:14px;border-left:5px solid #fd7e14;background:#f8f9fa}.encoder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.encoder-address{grid-column:1/-1}.encoder-mode-hidden{visibility:hidden;pointer-events:none}.wrap-setting label{display:flex;align-items:center;gap:6px;margin:0}.wrap-setting input{width:auto;margin:0}.angle-section,.tof-section{margin-top:12px;padding:14px;border-left:5px solid #6610f2;background:#f8f9fa}.joystick-section{margin-top:12px;padding:14px;border-left:5px solid #e83e8c;background:#f8f9fa}.angle-grid,.tof-grid,.joystick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.angle-address,.tof-address,.joystick-address,.joystick-invert{grid-column:1/-1}.angle-section h3,.tof-section h3,.joystick-section h3{margin:0 0 8px}.joystick-invert{display:flex;gap:18px;flex-wrap:wrap}.joystick-invert label{display:flex;align-items:center;gap:6px;margin:0}.joystick-invert input{width:auto;margin:0}.click-section{margin-top:14px;padding:14px;border-left:5px solid #28a745;background:#f8f9fa}.click-section h3,.encoder-rotation h3{margin:0 0 8px}
+.encoder-rotation{margin-top:12px;padding:14px;border-left:5px solid #fd7e14;background:#f8f9fa}.encoder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.encoder-legacy-grid .numeric-error:empty{display:none;min-height:0}.encoder-address{grid-column:1/-1}.encoder-mode-hidden{visibility:hidden;pointer-events:none}.wrap-setting label{display:flex;align-items:center;gap:6px;margin:0}.wrap-setting input{width:auto;margin:0}.angle-section,.tof-section{margin-top:12px;padding:14px;border-left:5px solid #6610f2;background:#f8f9fa}.joystick-section{margin-top:12px;padding:14px;border-left:5px solid #e83e8c;background:#f8f9fa}.angle-grid,.tof-grid,.joystick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.angle-address,.tof-address,.joystick-address,.joystick-invert{grid-column:1/-1}.angle-section h3,.tof-section h3,.joystick-section h3{margin:0 0 8px}.joystick-invert{display:flex;gap:18px;flex-wrap:wrap}.joystick-invert label{display:flex;align-items:center;gap:6px;margin:0}.joystick-invert input{width:auto;margin:0}.click-section{margin-top:14px;padding:14px;border-left:5px solid #28a745;background:#f8f9fa}.click-section h3,.encoder-rotation h3{margin:0 0 8px}
 .encoder-migration-panel{margin:14px 0 18px;padding:14px 16px;border:1px solid #f0c36a;border-radius:9px;background:#fff9e8}.encoder-migration-panel strong{display:block}.encoder-migration-panel p{margin:6px 0;color:#68758a}.encoder-migration-panel label{display:flex;align-items:center;gap:9px;font-weight:normal}.encoder-migration-panel input[type=checkbox]{width:auto;margin:0}.encoder-migration-action{display:inline-block;width:auto;margin:14px 0 0;padding:7px 12px;border:0;border-radius:7px;background:#3267e3;color:#fff;font-size:.85em;text-decoration:none}.encoder-migration-cancel{background:#64748b;padding:11px 16px;font-size:1em}.encoder-v2-mode{grid-column:1/-1}.encoder-v2-direction-value{display:none}.encoder-v2-direction .encoder-v2-amount-value{display:none}.encoder-v2-direction .encoder-v2-direction-value{display:block}
 .save-bar{position:sticky;z-index:15;bottom:8px;display:flex;align-items:center;gap:12px;padding:10px 12px;margin:16px 0 28px;background:rgba(255,255,255,.96);border:1px solid #dce2ea;border-radius:10px;box-shadow:0 5px 18px rgba(0,0,0,.14)}.save-bar button{flex:1;margin:0;background:#28a745}.dirty-status{color:#b45f06;font-weight:bold;white-space:nowrap}.saved-device-card h2{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.btn-warning{background:#ff9800}.toast{position:fixed;z-index:30;left:50%;bottom:78px;transform:translateX(-50%);padding:11px 18px;border-radius:8px;background:#17324d;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.25)}.wifi-actions{margin-top:28px}.wifi-actions form{margin:0}.danger-zone{margin-top:28px;border-left-color:#dc3545}.danger-zone button{width:100%;margin:0;background:#dc3545}
 .language-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.language-row h2{margin:0}.language-row form{margin:0;min-width:150px}.language-row select{margin:0}
@@ -144,10 +144,11 @@ function validateDeviceNumber(input){const name=input.name||'',label=(input.pare
 function updateAngleResolution(select){const input=select.closest('.device').querySelector('[name^=angle_deadband_]');if(input)validateDeviceNumber(input)}
 function sequenceFieldError(input,error){let small=input.parentNode.querySelector('.sequence-error');if(!small){small=document.createElement('small');small.className='sequence-error err';input.parentNode.appendChild(small)}small.textContent=error;input.classList.toggle('invalid',!!error);return !error}function validateSequence(box){let fields=box.querySelectorAll('input[type=number]'),valid=true;if(fields.length<3)return true;let start=Number(fields[0].value),end=Number(fields[1].value),step=Number(fields[2].value),startError=float32Error(fields[0].value,tx('Start','開始値')),endError=float32Error(fields[1].value,tx('End','終了値')),stepError=float32Error(fields[2].value,tx('Step','増減量'));if(!sequenceFieldError(fields[0],startError))valid=false;if(!sequenceFieldError(fields[1],endError))valid=false;if(!stepError&&step===0)stepError=tx('Step must not be zero','増減量には0を指定できません');if(!startError&&!endError&&!stepError&&((start<end&&step<0)||(start>end&&step>0)))stepError=tx('Step must advance from Start toward End','増減量が開始値から終了値へ進む方向になっていません');if(!sequenceFieldError(fields[2],stepError))valid=false;return valid}
 function limitAndValidate(input,max){limitBytes(input,max);validateInput(input)}function validateSettingsForm(form){let valid=true;form.querySelectorAll('.msg-address,.msg-value,.osc-address').forEach(input=>{if(!validateInput(input))valid=false});form.querySelectorAll('.device input[type=number]').forEach(input=>{if(!input.closest('.sequence-card')&&!validateDeviceNumber(input))valid=false});form.querySelectorAll('.sequence-card').forEach(box=>{if(!validateSequence(box))valid=false});if(!valid){const bad=form.querySelector('.invalid');if(bad)bad.focus();alert(tx('Please correct the settings highlighted in red.','赤く表示された設定項目を修正してください。'))}return valid}
+function confirmEncoderV2Migrations(form){for(const migration of form.querySelectorAll('input[name^="enc_edit_model_"][value="migration_v2"]')){const index=migration.name.substring('enc_edit_model_'.length);if(!form.querySelector('[name="enc_migration_confirm_'+index+'"]:checked')){alert(tx('Confirm the semantic differences before saving the v2 candidate.','v2候補を保存する前に、動作上の違いを確認してください。'));return false}}return true}
 function markDirty(event){if(event&&event.target&&event.target.matches('input[type="file"]'))return;const status=document.getElementById('dirty-status');if(status)status.hidden=false}
 function showToast(message){const toast=document.getElementById('save-toast');toast.textContent=message;toast.hidden=false;clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.hidden=true,3000)}
 async function deleteAllSettings(event){event.preventDefault();if(!confirm(tx('Delete all settings? This cannot be undone.','すべての設定を削除しますか？この操作は取り消せません。')))return;const button=event.currentTarget.querySelector('button');button.disabled=true;button.textContent=tx('Deleting...','削除中...');try{const response=await fetch('/delete-all-settings',{method:'POST'}),message=await response.text();if(!response.ok)throw new Error(message);showToast(message)}catch(error){button.disabled=false;button.textContent=tx('Delete All Settings','すべての設定を削除');alert(error.message||tx('Could not delete settings.','設定を削除できませんでした。'))}}
-async function saveSettings(event){const form=event.currentTarget;if(!validateSettingsForm(form))return;const button=form.querySelector('.save-bar button');button.disabled=true;try{const response=await fetch('/save-all?ajax=1',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const message=await response.text();if(!response.ok)throw new Error(message);document.getElementById('dirty-status').hidden=true;showToast(message)}catch(error){alert(error.message||tx('Could not save settings.','設定を保存できませんでした。'))}finally{button.disabled=false}}
+async function saveSettings(event){const form=event.currentTarget;if(!validateSettingsForm(form)||!confirmEncoderV2Migrations(form))return;const migrations=[...form.querySelectorAll('input[name^="enc_edit_model_"][value="migration_v2"]')],button=form.querySelector('.save-bar button');button.disabled=true;try{const response=await fetch('/save-all?ajax=1',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const message=await response.text();if(!response.ok)throw new Error(message);document.getElementById('dirty-status').hidden=true;if(migrations.length){const index=migrations[0].name.substring('enc_edit_model_'.length),identity=form.querySelector('[name="identity_'+index+'"]')?.value;if(identity)focusEncoderAfterMigration(identity);location.replace('/')}else showToast(message)}catch(error){alert(error.message||tx('Could not save settings.','設定を保存できませんでした。'))}finally{button.disabled=false}}
 async function deleteSavedDevice(event,form){event.preventDefault();if(!confirm(tx('Delete settings for this device?','このデバイスの設定を削除しますか？')))return;try{const response=await fetch('/delete_device?ajax=1',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});const message=await response.text();if(!response.ok)throw new Error(message);form.closest('.saved-device-card').remove();showToast(message)}catch(error){alert(error.message||tx('Could not delete device settings.','デバイス設定を削除できませんでした。'))}}
 function toggleDeviceMenu(index){document.querySelectorAll('.device-menu').forEach(menu=>{if(menu.id!=='device-menu-'+index)menu.hidden=true});const menu=document.getElementById('device-menu-'+index);menu.hidden=!menu.hidden}
 function chooseSettingsFile(){document.getElementById('settings-import-file').click()}
@@ -1211,22 +1212,23 @@ void appendEncoderCard(String& html, const EncoderSetting& persistedSetting,
   html += "<div class='key-grid'><div><label>" + String(tr("Device Name", "デバイス名")) + "</label><input name='display_name_" + idx + "' maxlength='64' required value='" + htmlEscape(setting.displayName) + "'></div></div>";
   html += "<div class='encoder-rotation'><h3>" + String(tr("Encoder Rotation", "エンコーダー回転")) + "</h3>";
   if (candidateReady) {
-    html += "<div class='encoder-migration-panel'><strong>" + String(tr("Notes about migrating to v2", "v2形式への移行に関する注意事項")) + "</strong><p>" + String(tr("Review the candidate values before saving as v2.", "v2として保存する前に候補値を確認してください。")) + "</p><label><input type='checkbox'>" + String(tr("I understand the differences and want to save as v2.", "動作上の違いを理解し、v2として保存します。")) + "</label><button type='button' class='encoder-migration-action encoder-migration-cancel' onclick=\"cancelEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Return to Legacy settings", "旧形式の設定へ戻る")) + "</button></div>";
+    html += "<div class='encoder-migration-panel'><strong>" + String(tr("Notes about migrating to v2", "v2形式への移行に関する注意事項")) + "</strong><p>" + String(tr("Review the candidate values before saving as v2.", "v2として保存する前に候補値を確認してください。")) + "</p><label><input type='checkbox' name='enc_migration_confirm_" + idx + "' value='1'>" + String(tr("I understand the differences and want to save as v2.", "動作上の違いを理解し、v2として保存します。")) + "</label><button type='button' class='encoder-migration-action encoder-migration-cancel' onclick=\"cancelEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Return to Legacy settings", "旧形式の設定へ戻る")) + "</button></div>";
   } else if (setting.settingsModel == ENCODER_SETTINGS_LEGACY) {
     html += "<div class='encoder-migration-panel'><strong>" + String(tr("Legacy Encoder settings", "旧形式のエンコーダー設定")) + "</strong><p>" + String(tr("Ordinary Save keeps the Legacy model.", "通常の保存では旧形式のまま維持されます。")) + "</p><button type='button' class='encoder-migration-action' onclick=\"startEncoderMigration('" + htmlEscape(setting.identity) + "')\">" + String(tr("Migrate to v2 settings", "v2設定へ移行する")) + "</button></div>";
   }
-  html += "<div class='encoder-grid" + String(showV2 && setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " encoder-v2-direction" : "") + "'>";
+  html += "<input type='hidden' name='enc_edit_model_" + idx + "' value='" + String(candidateReady ? "migration_v2" : (showV2 ? "v2" : "legacy")) + "'>";
+  html += "<div class='encoder-grid" + String(showV2 ? (setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " encoder-v2-direction" : "") : " encoder-legacy-grid") + "'>";
   html += "<div class='encoder-address address-field'><label>" + String(tr("OSC Address", "OSCアドレス")) + "</label><input class='osc-address' maxlength='192' required name='enc_rotation_" + idx + "' value='" + htmlEscape(setting.rotationAddress) + "' oninput='limitAndValidate(this,192)'><small><span class='err'></span><span class='bytes'></span></small></div>";
   if (showV2) {
-    html += "<div class='encoder-v2-mode'><label>" + String(tr("Mode", "モード")) + "</label><select onchange='updateEncoderV2Mode(this)'><option value='0'" + String(setting.rotationMode == ENCODER_ROTATION_AMOUNT ? " selected" : "") + ">" + tr("Amount", "回転量") + "</option><option value='1'" + String(setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " selected" : "") + ">" + tr("Direction", "回転方向") + "</option></select></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Minimum", "最小値")) + "</label><input type='number' step='any' value='" + String(setting.outputMin, 7) + "'></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Maximum", "最大値")) + "</label><input type='number' step='any' value='" + String(setting.outputMax, 7) + "'></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Beyond Minimum / Maximum", "最小値・最大値の先")) + "</label><select><option" + String(setting.wrapAround ? " selected" : "") + ">" + tr("Wrap", "ループ") + "</option><option" + String(!setting.wrapAround ? " selected" : "") + ">" + tr("Stop", "停止") + "</option></select></div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Range Steps", "範囲ステップ数")) + "</label><input type='number' min='0' max='65535' value='" + String(setting.rangeSteps) + "'></div>";
-    html += "<div><label>" + String(tr("Type", "型")) + "</label>" + typeSelectHtml("enc_v2_type_display_" + idx, setting.outputType) + "</div>";
-    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Rotation Direction", "回転方向")) + "</label><select><option" + String(setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Clockwise increases", "時計回りで増加") + "</option><option" + String(!setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Counter-clockwise increases", "反時計回りで増加") + "</option></select></div>";
-    html += "<div class='encoder-v2-direction-value'><label>" + String(tr("Counter-clockwise Value", "反時計回りの値")) + "</label><input value='" + htmlEscape(setting.counterClockwiseValue) + "'></div>";
-    html += "<div class='encoder-v2-direction-value'><label>" + String(tr("Clockwise Value", "時計回りの値")) + "</label><input value='" + htmlEscape(setting.clockwiseValue) + "'></div>";
+    html += "<div class='encoder-v2-mode'><label>" + String(tr("Mode", "モード")) + "</label><select name='enc_v2_mode_" + idx + "' onchange='updateEncoderV2Mode(this)'><option value='0'" + String(setting.rotationMode == ENCODER_ROTATION_AMOUNT ? " selected" : "") + ">" + tr("Amount", "回転量") + "</option><option value='1'" + String(setting.rotationMode == ENCODER_ROTATION_DIRECTION ? " selected" : "") + ">" + tr("Direction", "回転方向") + "</option></select></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Minimum", "最小値")) + "</label><input type='number' step='any' name='enc_v2_min_" + idx + "' value='" + String(setting.outputMin, 7) + "'></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Maximum", "最大値")) + "</label><input type='number' step='any' name='enc_v2_max_" + idx + "' value='" + String(setting.outputMax, 7) + "'></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Beyond Minimum / Maximum", "最小値・最大値の先")) + "</label><select name='enc_v2_wrap_" + idx + "'><option value='1'" + String(setting.wrapAround ? " selected" : "") + ">" + tr("Wrap", "🔄ループする") + "</option><option value='0'" + String(!setting.wrapAround ? " selected" : "") + ">" + tr("Stop", "🛑停止する") + "</option></select></div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Range Steps", "範囲ステップ数")) + "</label><input type='number' min='0' max='65535' name='enc_v2_steps_" + idx + "' value='" + String(setting.rangeSteps) + "'></div>";
+    html += "<div class='encoder-v2-direction-value'><label>" + String(tr("↪️ Counter-clockwise Value", "↪️反時計回りの値")) + "</label><input maxlength='128' name='enc_v2_ccw_value_" + idx + "' value='" + htmlEscape(setting.counterClockwiseValue) + "'></div>";
+    html += "<div class='encoder-v2-direction-value'><label>" + String(tr("↩️ Clockwise Value", "↩️時計回りの値")) + "</label><input maxlength='128' name='enc_v2_cw_value_" + idx + "' value='" + htmlEscape(setting.clockwiseValue) + "'></div>";
+    html += "<div><label>" + String(tr("Type", "型")) + "</label>" + typeSelectHtml("enc_v2_type_" + idx, setting.outputType) + "</div>";
+    html += "<div class='encoder-v2-amount-value'><label>" + String(tr("Rotation Direction", "回転方向")) + "</label><select name='enc_v2_clockwise_" + idx + "'><option value='0'" + String(!setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Counter-clockwise increases", "↪️反時計回りで大きくなる") + "</option><option value='1'" + String(setting.clockwiseIncreases ? " selected" : "") + ">" + tr("Clockwise increases", "↩️時計回りで大きくなる") + "</option></select></div>";
     html += "</div></div>";
   } else {
   html += "<div><label>" + String(tr("Mode", "モード")) + "</label><select name='enc_increment_" + idx + "' onchange='updateEncoderMode(this)'><option value='0'" + String(!setting.sendIncrement ? " selected" : "") + ">" + tr("Absolute", "絶対値") + "</option><option value='1'" + String(setting.sendIncrement ? " selected" : "") + ">" + tr("Increment", "増分") + "</option></select></div>";
@@ -1715,13 +1717,28 @@ bool readEncoderSetting(size_t formIndex, EncoderSetting& candidate) {
     }
   }
   if (!current) return false;
-  candidate = *current;
+  const String editModel = server.arg("enc_edit_model" + suffix);
+  const bool migrationSave = editModel == "migration_v2";
+  if (editModel == "legacy") {
+    if (current->settingsModel != ENCODER_SETTINGS_LEGACY) return false;
+    candidate = *current;
+    candidate.settingsModel = ENCODER_SETTINGS_LEGACY;
+  } else if (editModel == "v2") {
+    if (current->settingsModel != ENCODER_SETTINGS_V2) return false;
+    candidate = *current;
+  } else if (migrationSave) {
+    if (current->settingsModel != ENCODER_SETTINGS_LEGACY ||
+        server.arg("enc_migration_confirm" + suffix) != "1" ||
+        !encoderSettingsBuildV2MigrationCandidate(*current, candidate))
+      return false;
+    candidate.settingsModel = ENCODER_SETTINGS_V2;
+  } else {
+    return false;
+  }
   candidate.displayName = server.arg("display_name" + suffix);
   candidate.displayName.trim();
   candidate.rotationAddress = server.arg("enc_rotation" + suffix);
   candidate.rotationAddress.trim();
-  candidate.sendIncrement = server.arg("enc_increment" + suffix).toInt() != 0;
-  candidate.wrapAround = server.hasArg("enc_wrap" + suffix);
 
   auto readFloat = [&](const String& name, float& value) {
     const String text = server.arg(name + suffix);
@@ -1736,15 +1753,60 @@ bool readEncoderSetting(size_t formIndex, EncoderSetting& candidate) {
   bool valid = !candidate.displayName.isEmpty() &&
                candidate.displayName.length() <= 64 &&
                validJsonAddress(candidate.rotationAddress, rotationError);
-  valid = valid && readFloat("enc_abs_min", candidate.absoluteInputMin) &&
-          readFloat("enc_abs_max", candidate.absoluteInputMax) &&
-          readFloat("enc_scale", candidate.incrementScale) &&
-          readFloat("enc_out_min", candidate.outputMin) &&
-          readFloat("enc_out_max", candidate.outputMax);
-  candidate.outputType = static_cast<ValueType>(constrain(
-      server.arg("enc_out_type" + suffix).toInt(), 0, 2));
-  candidate.clickMode = server.arg("mode" + suffix).toInt() == MODE_SEQUENCE
-                            ? MODE_SEQUENCE : MODE_PRESS_RELEASE;
+  if (candidate.settingsModel == ENCODER_SETTINGS_V2) {
+    const String modeText = server.arg("enc_v2_mode" + suffix);
+    const String typeText = server.arg("enc_v2_type" + suffix);
+    const String pushModeText = server.arg("mode" + suffix);
+    if ((modeText != "0" && modeText != "1") ||
+        (typeText != "0" && typeText != "1" && typeText != "2") ||
+        (pushModeText != "0" && pushModeText != "1"))
+      return false;
+    candidate.rotationMode = static_cast<EncoderRotationMode>(modeText.toInt());
+    candidate.outputType = static_cast<ValueType>(typeText.toInt());
+    candidate.pushMode = pushModeText == "1" ? MODE_SEQUENCE : MODE_PRESS_RELEASE;
+    candidate.clickMode = candidate.pushMode;
+    if (candidate.rotationMode == ENCODER_ROTATION_AMOUNT) {
+      const String wrapText = server.arg("enc_v2_wrap" + suffix);
+      const String clockwiseText = server.arg("enc_v2_clockwise" + suffix);
+      const String stepsText = server.arg("enc_v2_steps" + suffix);
+      char* stepsEnd = nullptr;
+      errno = 0;
+      const long steps = strtol(stepsText.c_str(), &stepsEnd, 10);
+      if ((wrapText != "0" && wrapText != "1") ||
+          (clockwiseText != "0" && clockwiseText != "1") ||
+          stepsText.isEmpty() || errno == ERANGE ||
+          stepsEnd == stepsText.c_str() || *stepsEnd != '\0' ||
+          steps < 0 || steps > 65535)
+        return false;
+      candidate.wrapAround = wrapText == "1";
+      candidate.clockwiseIncreases = clockwiseText == "1";
+      candidate.rangeSteps = static_cast<uint16_t>(steps);
+      valid = readFloat("enc_v2_min", candidate.outputMin) && valid;
+      valid = readFloat("enc_v2_max", candidate.outputMax) && valid;
+    } else {
+      candidate.counterClockwiseValue =
+          server.arg("enc_v2_ccw_value" + suffix);
+      candidate.clockwiseValue = server.arg("enc_v2_cw_value" + suffix);
+    }
+  } else {
+    const String legacyMode = server.arg("enc_increment" + suffix);
+    const String typeText = server.arg("enc_out_type" + suffix);
+    const String clickModeText = server.arg("mode" + suffix);
+    if ((legacyMode != "0" && legacyMode != "1") ||
+        (typeText != "0" && typeText != "1" && typeText != "2") ||
+        (clickModeText != "0" && clickModeText != "1"))
+      return false;
+    candidate.sendIncrement = legacyMode == "1";
+    candidate.wrapAround = server.hasArg("enc_wrap" + suffix);
+    valid = readFloat("enc_abs_min", candidate.absoluteInputMin) && valid;
+    valid = readFloat("enc_abs_max", candidate.absoluteInputMax) && valid;
+    valid = readFloat("enc_scale", candidate.incrementScale) && valid;
+    valid = readFloat("enc_out_min", candidate.outputMin) && valid;
+    valid = readFloat("enc_out_max", candidate.outputMax) && valid;
+    candidate.outputType = static_cast<ValueType>(typeText.toInt());
+    candidate.clickMode =
+        clickModeText == "1" ? MODE_SEQUENCE : MODE_PRESS_RELEASE;
+  }
   const int pressCount = server.arg("p_count" + suffix).toInt();
   const int releaseCount = server.arg("r_count" + suffix).toInt();
   if (pressCount < 0 || releaseCount < 0 ||
@@ -1891,6 +1953,19 @@ void handleSaveAll() {
     return;
   }
   const int count = constrain(server.arg("connected_count").toInt(), 0, 40);
+  for (int i = 0; i < count; ++i) {
+    const String suffix = "_" + String(i);
+    if (server.arg("device_type" + suffix).toInt() ==
+            CHAIN_ENCODER_DEVICE_TYPE &&
+        server.arg("enc_edit_model" + suffix) == "migration_v2" &&
+        server.arg("enc_migration_confirm" + suffix) != "1") {
+      sendActionResult(
+          400,
+          tr("Confirm the semantic differences before saving the v2 candidate.",
+             "v2候補を保存する前に、動作上の違いを確認してください。"));
+      return;
+    }
+  }
   for (int i = 0; i < count; ++i) {
     const int type = server.arg("device_type_" + String(i)).toInt();
     KeySetting keyCandidate;
