@@ -17,10 +17,9 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 ### v1.4.7
 
-- Encoderの絶対値モードで、最小値／最大値に達したときのループまたは停止を設定可能
-- 「範囲をループする」のチェックボックスとラベルを横並びで中央揃えに調整
-- Device Presetの`wrapAround`を保存・復元
-- `wrapAround`が省略された既存プリセットは、従来互換のループ有効として扱う
+- Encoder v2のAmount／Direction設定とLegacyからの移行に対応
+- Device PresetのEncoder v1／v2 Import／Exportに対応
+- 設定ファイルがない新規Encoderはv2設定を初期設定として使用
 
 過去の変更内容は[変更履歴](CHANGELOG.md)を参照してください。
 
@@ -52,13 +51,13 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 ChainOSCminiは、ChainOSCシリーズ共通の`ChainOSC-device-preset`形式に対応しています。
 
-ChainOSCminiのDevice PresetはすべてschemaVersion 1です。
+Encoder v1／v2を含む、Device TypeごとのschemaVersionに対応しています。
 
 - Key、Encoder、Angle、ToF、Joystickのプリセットをエクスポート／インポート
 - 対応する`deviceType`でデバイス種類を判定
 - Key v1：M5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPad、ChainOSC for Windowsと共有
 - Encoder v1：M5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPadと共有
-- Encoder v2：ChainOSCminiはImport／Exportに非対応
+- Encoder v2：M5ChainOSC、ChainOSCmini、ChainOSCnano、ChainOSCPadで共有
 - Angle v1／ToF v1／Joystick v1：M5ChainOSC、ChainOSCmini、ChainOSCnano間で共有
 - 共有可否はDevice Type、schemaVersion、各製品のImporter／Exporter対応に基づく
 - UID、Device Name、接続ポートなど、インポート先固有の情報は含めない
@@ -87,7 +86,7 @@ Device Preset v1／v2の詳細な仕様、JSON Schema、fixture、Error Registry
 |---|---|---|
 | VRChatのマイクON／OFF | `/input/Voice` | 押した時 `1`／離した時 `0` |
 | VRChatのAFKモードON／OFF | `/input/AFKToggle` | 押した時 `1`／離した時 `0` |
-| EncoderでVRChatカメラをズーム | `/usercamera/Zoom` | Absolute、出力範囲 `20`～`300` |
+| EncoderでVRChatカメラをズーム | `/usercamera/Zoom` | Amount、出力範囲 `20`～`300` |
 | AngleでVRChatカメラをズーム | `/usercamera/Zoom` | 12-bit、出力範囲 `20`～`300` |
 | JoystickでVRChat内を移動 | `/input/Vertical`／`/input/Horizontal` | 出力範囲 `-1`～`1` |
 
