@@ -747,6 +747,27 @@ bool chainPortIdentifyDevice(const String& identity) {
          identifyOnPort(portG47G48, identity);
 }
 
+void chainPortResetAngleRuntimeState(const String& identity) {
+  ChainPortContext* ports[] = {&portG5G6, &portG47G48};
+  for (ChainPortContext* port : ports) {
+    for (uint16_t index = 0; index < port->deviceCount; ++index) {
+      DeviceSnapshot& device = port->devices[index];
+      if (device.type != CHAIN_ANGLE_TYPE_CODE || !device.uidValid) continue;
+      String deviceIdentity = F("chain:");
+      deviceIdentity.reserve(6 + UID_SIZE * 2);
+      for (size_t byteIndex = 0; byteIndex < UID_SIZE; ++byteIndex) {
+        char byteText[3];
+        snprintf(byteText, sizeof(byteText), "%02X", device.uid[byteIndex]);
+        deviceIdentity += byteText;
+      }
+      if (deviceIdentity == identity) {
+        device.angleInitialized = false;
+        return;
+      }
+    }
+  }
+}
+
 size_t chainPortConnectedDeviceCount() {
   return static_cast<size_t>(portG5G6.deviceCount) +
          static_cast<size_t>(portG47G48.deviceCount);
