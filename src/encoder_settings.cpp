@@ -314,6 +314,7 @@ EncoderSetting* encoderSettingsEnsure(const String& identity,
   keySettingsNormalizeSequence(setting.clickSequence);
   bool found = false;
   loadSetting(identity, setting, found);
+  if (!found) setting.settingsModel = ENCODER_SETTINGS_V2;
   saveKnownDevices();
   return &setting;
 }

@@ -6,6 +6,12 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.7] - 2026-09-13
+
+### Changed
+
+- ChainOSCminiのEncoder v2移行UIと設定表示を改善
+
 ## [1.4.6] - 2026-09-13
 
 ### Changed
