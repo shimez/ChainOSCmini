@@ -6,6 +6,17 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.8] - 2026-09-14
+
+### Changed
+
+- Angle／Joystick／ToFのDeadband表記をMinimum Changeへ整理
+
+### Fixed
+
+- Angleの分解能変更時にruntime baselineをリセットし、直後の不要なOSC送信を防止
+- JoystickのMinimum Change baselineをX／Y各軸で独立して更新
+
 ## [1.4.7] - 2026-09-13
 
 ### Changed

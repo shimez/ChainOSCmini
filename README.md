@@ -15,11 +15,14 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 ## 現在のバージョン
 
-### v1.4.7
+### v1.4.8
 
 - Encoder v2のAmount／Direction設定とLegacyからの移行に対応
 - Device PresetのEncoder v1／v2 Import／Exportに対応
 - 設定ファイルがない新規Encoderはv2設定を初期設定として使用
+- Angle／Joystick／ToFのMinimum Change表記を整理
+- Angleの分解能変更直後の不要なOSC送信を防止
+- JoystickのMinimum Change判定をX／Y各軸で独立して管理
 
 過去の変更内容は[変更履歴](CHANGELOG.md)を参照してください。
 
