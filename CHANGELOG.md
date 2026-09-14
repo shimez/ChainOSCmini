@@ -270,7 +270,9 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.6...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.8...HEAD
+[1.4.8]: https://github.com/shimez/ChainOSCmini/compare/v1.4.7...v1.4.8
+[1.4.7]: https://github.com/shimez/ChainOSCmini/compare/v1.4.6...v1.4.7
 [1.4.6]: https://github.com/shimez/ChainOSCmini/compare/v1.4.5...v1.4.6
 [1.4.5]: https://github.com/shimez/ChainOSCmini/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/shimez/ChainOSCmini/compare/v1.4.3...v1.4.4
