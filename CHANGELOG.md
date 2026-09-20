@@ -6,6 +6,12 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.9] - 2026-09-20
+
+### Added
+
+- Encoder v2のプッシュ操作にRotation Resetを追加し、指定値へ回転状態をリセットできるよう対応
+
 ## [1.4.8] - 2026-09-14
 
 ### Changed
