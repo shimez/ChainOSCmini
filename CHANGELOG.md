@@ -6,6 +6,17 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.10] - 2026-09-21
+
+### Changed
+
+- オンボードRGB LEDのネットワーク状態表示をChainOSCPad準拠へ統一し、接続中は青の2回点滅、接続済みは緑の常時点灯、AP Modeは赤の点滅へ変更
+- OSC送信時にオンボードRGB LEDを一時消灯するactivity表示を追加
+
+### Fixed
+
+- AP ModeのWi-Fi設定画面を必要最小限のHTML／CSS／JavaScriptで生成し、HTML生成時のメモリ不足を防止
+
 ## [1.4.9] - 2026-09-20
 
 ### Added

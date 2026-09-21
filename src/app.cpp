@@ -30,8 +30,8 @@ void appSetup() {
 
   systemSettingsSetup();
   oscSetup();
-  networkSetup();
   dualKeyHardwareSetup();
+  networkSetup();
   chainPortSetup();
 }
 

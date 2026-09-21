@@ -3,6 +3,7 @@
 #include <ArduinoOSCWiFi.h>
 #include <WiFi.h>
 #include <math.h>
+#include <utility>
 
 #include "config.h"
 #include "angle_settings.h"
@@ -11,6 +12,23 @@
 #include "joystick_settings.h"
 #include "tof_settings.h"
 #include "system_settings.h"
+#include "dualkey_hardware.h"
+
+namespace {
+
+struct NotifyingOscWiFi {
+  template <typename... Args>
+  void send(Args&&... args) {
+    OscWiFi.send(std::forward<Args>(args)...);
+    dualKeyNotifyOscTx();
+  }
+};
+
+NotifyingOscWiFi notifyingOscWiFi;
+
+}  // namespace
+
+#define OscWiFi notifyingOscWiFi
 
 namespace {
 

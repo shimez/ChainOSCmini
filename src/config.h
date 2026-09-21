@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 static constexpr const char* APP_NAME = "ChainOSCmini";
-static constexpr const char* APP_VERSION = "1.4.9";
+static constexpr const char* APP_VERSION = "1.4.10";
 static constexpr unsigned long SERIAL_BAUD = 115200;
 static constexpr unsigned long BOOT_DIAGNOSTICS_DELAY_MS = 5000;
 static constexpr unsigned long HEARTBEAT_INTERVAL_MS = 5000;
@@ -22,6 +22,14 @@ static constexpr uint8_t LED_DATA_PIN = 21;
 static constexpr uint8_t LED_POWER_PIN = 40;
 static constexpr uint8_t LED_COUNT = 2;
 static constexpr unsigned long KEY_DEBOUNCE_MS = 20;
+static constexpr unsigned long STATUS_LED_AP_ON_MS = 500;
+static constexpr unsigned long STATUS_LED_AP_OFF_MS = 500;
+static constexpr unsigned long STATUS_LED_CONNECTING_ON_MS = 100;
+static constexpr unsigned long STATUS_LED_CONNECTING_OFF_MS = 100;
+static constexpr unsigned long STATUS_LED_CONNECTING_GAP_MS = 700;
+static constexpr unsigned long STATUS_LED_ACTIVITY_OFF_MS = 50;
+static constexpr unsigned long STATUS_LED_ACTIVITY_BASE_GAP_MS = 50;
+static constexpr unsigned long STATUS_LED_UPDATE_INTERVAL_MS = 10;
 
 // Independent UART assignments for both Chain connectors.
 static constexpr uint8_t CHAIN_G5_G6_RX_PIN = 5;

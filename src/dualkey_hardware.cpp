@@ -29,6 +29,9 @@ DebouncedKey keys[] = {
 NetworkLedState networkLedState = NetworkLedState::CONNECTING;
 bool ledsReady = false;
 unsigned long lastAnimationMs = 0;
+unsigned long networkStateStartedAtMs = 0;
+unsigned long activityEndsAtMs = 0;
+unsigned long activityReadyAtMs = 0;
 unsigned long identifyUntilMs[LED_COUNT] = {0, 0};
 
 bool identifyActive(size_t index, unsigned long now) {
@@ -36,26 +39,31 @@ bool identifyActive(size_t index, unsigned long now) {
          static_cast<long>(identifyUntilMs[index] - now) > 0;
 }
 
-uint8_t pulseLevel(unsigned long now, uint8_t minimum, uint8_t maximum) {
-  constexpr unsigned long kPulsePeriodMs = 2000;
-  constexpr unsigned long kHalfPeriodMs = kPulsePeriodMs / 2;
-  const unsigned long phase = now % kPulsePeriodMs;
-  const unsigned long ramp = phase <= kHalfPeriodMs
-                                 ? phase
-                                 : kPulsePeriodMs - phase;
-  return static_cast<uint8_t>(minimum +
-      (static_cast<unsigned long>(maximum - minimum) * ramp) /
-          kHalfPeriodMs);
+bool before(unsigned long now, unsigned long deadline) {
+  return static_cast<long>(now - deadline) < 0;
 }
 
-uint32_t networkColor(unsigned long now) {
-  if (networkLedState == NetworkLedState::AP_MODE) {
-    const uint8_t level = pulseLevel(now, 4, 24);
-    return keyLeds.Color(level, 0, level);
-  }
-  if (networkLedState == NetworkLedState::CONNECTING) {
-    return keyLeds.Color(0, 0, pulseLevel(now, 3, 24));
-  }
+bool networkLedOn(unsigned long now) {
+  const unsigned long elapsed = now - networkStateStartedAtMs;
+  if (networkLedState == NetworkLedState::CONNECTED) return true;
+  if (networkLedState == NetworkLedState::AP_MODE)
+    return elapsed % (STATUS_LED_AP_ON_MS + STATUS_LED_AP_OFF_MS) <
+           STATUS_LED_AP_ON_MS;
+  const unsigned long phase =
+      elapsed % (STATUS_LED_CONNECTING_ON_MS * 2 +
+                 STATUS_LED_CONNECTING_OFF_MS + STATUS_LED_CONNECTING_GAP_MS);
+  return phase < STATUS_LED_CONNECTING_ON_MS ||
+         (phase >= STATUS_LED_CONNECTING_ON_MS +
+                       STATUS_LED_CONNECTING_OFF_MS &&
+          phase < STATUS_LED_CONNECTING_ON_MS * 2 +
+                      STATUS_LED_CONNECTING_OFF_MS);
+}
+
+uint32_t networkColor() {
+  if (networkLedState == NetworkLedState::AP_MODE)
+    return keyLeds.Color(16, 0, 0);
+  if (networkLedState == NetworkLedState::CONNECTED)
+    return keyLeds.Color(0, 16, 0);
   return keyLeds.Color(0, 0, 16);
 }
 
@@ -64,7 +72,10 @@ uint32_t pressedColor() {
 }
 
 void renderLeds(unsigned long now) {
-  const uint32_t background = networkColor(now);
+  const bool activityActive = before(now, activityEndsAtMs);
+  const uint32_t background = !activityActive && networkLedOn(now)
+                                  ? networkColor()
+                                  : keyLeds.Color(0, 0, 0);
   for (size_t index = 0; index < LED_COUNT; ++index) {
     keyLeds.setPixelColor(
         KEY_LED_INDEX[index],
@@ -110,6 +121,7 @@ void dualKeyHardwareSetup() {
   keyLeds.begin();
   keyLeds.clear();
   ledsReady = true;
+  networkStateStartedAtMs = millis();
 
   for (size_t index = 0; index < LED_COUNT; ++index) {
     const bool pressed = digitalRead(keys[index].pin) == LOW;
@@ -121,7 +133,7 @@ void dualKeyHardwareSetup() {
 
   Serial.println("[ChainOSCmini][GPIO] KEY1=GPIO0 KEY2=GPIO17 debounce=20ms");
   Serial.println("[ChainOSCmini][GPIO] WS2812=GPIO21 PWR_EN=GPIO40 count=2");
-  Serial.println("[ChainOSCmini][GPIO] ap=PURPLE_PULSE connecting=BLUE_PULSE connected=BLUE pressed=ORANGE");
+  Serial.println("[ChainOSCmini][GPIO] ap=RED_BLINK connecting=BLUE_DOUBLE_BLINK connected=GREEN pressed=ORANGE");
 }
 
 void dualKeyHardwareUpdate() {
@@ -136,17 +148,30 @@ void dualKeyHardwareUpdate() {
     }
   }
   if (identifyExpired) renderLeds(now);
-  if (networkLedState != NetworkLedState::CONNECTED &&
-      now - lastAnimationMs >= 50) {
-    lastAnimationMs = now;
-    renderLeds(now);
-  }
+  dualKeyStatusLedUpdate();
+}
+
+void dualKeyStatusLedUpdate() {
+  const unsigned long now = millis();
+  if (!ledsReady || now - lastAnimationMs < STATUS_LED_UPDATE_INTERVAL_MS)
+    return;
+  lastAnimationMs = now;
+  renderLeds(now);
+}
+
+void dualKeyNotifyOscTx() {
+  const unsigned long now = millis();
+  if (before(now, activityEndsAtMs) || before(now, activityReadyAtMs)) return;
+  activityEndsAtMs = now + STATUS_LED_ACTIVITY_OFF_MS;
+  activityReadyAtMs = activityEndsAtMs + STATUS_LED_ACTIVITY_BASE_GAP_MS;
+  if (ledsReady) renderLeds(now);
 }
 
 void dualKeySetNetworkLedState(NetworkLedState state) {
   if (networkLedState == state) return;
   networkLedState = state;
-  if (ledsReady) renderLeds(millis());
+  networkStateStartedAtMs = millis();
+  if (ledsReady) renderLeds(networkStateStartedAtMs);
 }
 
 bool dualKeyIdentifyDevice(const String& identity) {
