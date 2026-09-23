@@ -6,6 +6,17 @@ ChainOSCminiの主な変更履歴を記録します。
 
 ## [Unreleased]
 
+## [1.4.11] - 2026-09-23
+
+### Added
+
+- Key SequenceにPing-Pongモードを追加
+
+### Fixed
+
+- Wi-Fi設定削除後に古いタブを再読み込みすると、新しく保存したWi-Fi設定まで削除される問題を修正
+- Wi-Fi設定の削除に失敗した場合に成功画面を表示せず、エラーを通知するよう修正
+
 ## [1.4.10] - 2026-09-21
 
 ### Changed
@@ -287,7 +298,10 @@ ChainOSCminiの主な変更履歴を記録します。
 - Arduino IDEとPlatformIOの両方に対応するプロジェクト構成を追加
 - GPIOを駆動しない安全なbring-upモードを追加
 
-[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.8...HEAD
+[Unreleased]: https://github.com/shimez/ChainOSCmini/compare/v1.4.11...HEAD
+[1.4.11]: https://github.com/shimez/ChainOSCmini/compare/v1.4.10...v1.4.11
+[1.4.10]: https://github.com/shimez/ChainOSCmini/compare/v1.4.9...v1.4.10
+[1.4.9]: https://github.com/shimez/ChainOSCmini/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/shimez/ChainOSCmini/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/shimez/ChainOSCmini/compare/v1.4.6...v1.4.7
 [1.4.6]: https://github.com/shimez/ChainOSCmini/compare/v1.4.5...v1.4.6

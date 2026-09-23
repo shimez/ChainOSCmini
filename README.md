@@ -15,14 +15,10 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 ## 現在のバージョン
 
-### v1.4.8
+### v1.4.11
 
-- Encoder v2のAmount／Direction設定とLegacyからの移行に対応
-- Device PresetのEncoder v1／v2 Import／Exportに対応
-- 設定ファイルがない新規Encoderはv2設定を初期設定として使用
-- Angle／Joystick／ToFのMinimum Change表記を整理
-- Angleの分解能変更直後の不要なOSC送信を防止
-- JoystickのMinimum Change判定をX／Y各軸で独立して管理
+- Key SequenceのLoop／Ping-Pongモードに対応
+- Wi-Fi設定の削除後、古いタブを更新しても新しい設定が削除されないよう改善
 
 過去の変更内容は[変更履歴](CHANGELOG.md)を参照してください。
 
@@ -30,7 +26,7 @@ M5Stack Chain DualKeyを使い、本体の2つのキーや左右に接続したM
 
 - DualKey本体キー、Chain Key、Chain Encoder、Chain Angle、Chain ToF、Chain JoystickからOSCメッセージを直接送信
 - 左右両方のChainポートへ接続したデバイスを個別に認識
-- Press / ReleaseとSequenceに対応
+- Press / ReleaseとSequence（Loop／Ping-Pong）に対応
 - 1キーあたり最大8件のOSCメッセージとFloat／Int／String型を設定可能
 - Chain Key／Encoder／Angle／ToF／Joystickの設定をUID単位で保存し、抜き差しや左右移動後も復元
 - ブラウザーから英語／日本語で設定可能
