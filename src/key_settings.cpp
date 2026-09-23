@@ -681,6 +681,7 @@ void keySettingsNormalizeSequence(KeySequenceConfig& sequence) {
   if (sequence.start <= sequence.end && sequence.step < 0) sequence.step = -sequence.step;
   if (sequence.start > sequence.end && sequence.step > 0) sequence.step = -sequence.step;
   sequence.current = sequence.start;
+  sequence.direction = SequenceDirection::Forward;
 }
 
 void keySettingsSetup() {

@@ -104,11 +104,7 @@ void sendKeyValue(KeySetting& setting, bool pressed) {
     else
       OscWiFi.send(targetHost.c_str(), targetPort, sequence.address.c_str(),
                    valueText.c_str());
-    float next = value + sequence.step;
-    if ((sequence.step >= 0 && next > sequence.end + 1e-6f) ||
-        (sequence.step < 0 && next < sequence.end - 1e-6f))
-      next = sequence.start;
-    sequence.current = next;
+    advanceSequence(sequence);
     Serial.printf("[ChainOSCmini][OSC] source=%s mode=sequence address=%s value=%s target=%s:%u\n",
                   setting.identity.c_str(), sequence.address.c_str(),
                   valueText.c_str(), targetHost.c_str(), targetPort);
@@ -191,11 +187,7 @@ void sendEncoderClickValue(EncoderSetting& setting, bool pressed) {
     else
       OscWiFi.send(targetHost.c_str(), targetPort, sequence.address.c_str(),
                    valueText.c_str());
-    float next = value + sequence.step;
-    if ((sequence.step >= 0 && next > sequence.end + 1e-6f) ||
-        (sequence.step < 0 && next < sequence.end - 1e-6f))
-      next = sequence.start;
-    sequence.current = next;
+    advanceSequence(sequence);
     return;
   }
   KeyOscMessage* messages = pressed ? setting.pressMessages
@@ -383,9 +375,7 @@ void sendJoystickClickValue(JoystickSetting& setting, bool pressed) {
     if (sequence.valueType == TYPE_FLOAT) OscWiFi.send(targetHost.c_str(), targetPort, sequence.address.c_str(), value);
     else if (sequence.valueType == TYPE_INT) OscWiFi.send(targetHost.c_str(), targetPort, sequence.address.c_str(), static_cast<int>(lroundf(value)));
     else { const String text(value, 3); OscWiFi.send(targetHost.c_str(), targetPort, sequence.address.c_str(), text.c_str()); }
-    float next = value + sequence.step;
-    if ((sequence.step >= 0 && next > sequence.end + 1e-6f) || (sequence.step < 0 && next < sequence.end - 1e-6f)) next = sequence.start;
-    sequence.current = next;
+    advanceSequence(sequence);
     return;
   }
   KeyOscMessage* messages = pressed ? setting.pressMessages : setting.releaseMessages;
